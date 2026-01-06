@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Make it Meme 🎮</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="background-effects">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+        <div class="grid-overlay"></div>
+    </div>
+
+    <main class="container">
+        <!-- This page redirects to the main page with room code -->
+        <section class="screen active">
+            <div class="loading-screen">
+                <div class="spinner large"></div>
+                <p>Caricamento partita...</p>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // Redirect to main page - the room code is in the URL
+        const roomCode = window.location.pathname.split('/').pop();
+        if (roomCode) {
+            sessionStorage.setItem('pendingRoomCode', roomCode);
+        }
+        window.location.href = '/';
+    </script>
+</body>
+</html>
+

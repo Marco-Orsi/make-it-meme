@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Make it Meme 🎮</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="background-effects">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+        <div class="grid-overlay"></div>
+    </div>
+
+    <main class="container">
+        <!-- Home Screen -->
+        <section id="home-screen" class="screen active">
+            <div class="logo-container">
+                <h1 class="logo">
+                    <span class="logo-make">MAKE IT</span>
+                    <span class="logo-meme">MEME</span>
+                </h1>
+                <p class="tagline">Il party game dei meme più divertente!</p>
+            </div>
+
+            <div class="home-buttons">
+                <button class="btn btn-primary btn-large" onclick="showScreen('create-screen')">
+                    <span class="btn-icon">🎮</span>
+                    <span class="btn-text">Crea Partita</span>
+                </button>
+                <button class="btn btn-secondary btn-large" onclick="showScreen('join-screen')">
+                    <span class="btn-icon">🚀</span>
+                    <span class="btn-text">Unisciti</span>
+                </button>
+            </div>
+
+            <div class="features">
+                <div class="feature">
+                    <span class="feature-icon">👥</span>
+                    <span class="feature-text">2-8 Giocatori</span>
+                </div>
+                <div class="feature">
+                    <span class="feature-icon">🎯</span>
+                    <span class="feature-text">4 Modalità</span>
+                </div>
+                <div class="feature">
+                    <span class="feature-icon">🏆</span>
+                    <span class="feature-text">Vota & Vinci</span>
+                </div>
+            </div>
+
+            <a href="/suggestions" class="suggestions-link">
+                💡 Suggerisci nuove funzionalità
+            </a>
+        </section>
+
+        <!-- Create Game Screen -->
+        <section id="create-screen" class="screen">
+            <button class="back-btn" onclick="showScreen('home-screen')">← Indietro</button>
+            
+            <div class="form-container">
+                <h2 class="screen-title">🎮 Crea Partita</h2>
+                
+                <div class="form-group">
+                    <label for="create-name">Il tuo nome</label>
+                    <input type="text" id="create-name" placeholder="Come ti chiami?" maxlength="20" autocomplete="off">
+                </div>
+
+                <div class="form-group">
+                    <label>Tipo di immagini</label>
+                    <div class="image-type-selector">
+                        <button class="image-type-btn active" data-image-type="custom" onclick="selectImageType(this)">
+                            <span class="mode-icon">🖼️</span>
+                            <span class="mode-name">Personalizzate</span>
+                            <span class="mode-desc">Le tue immagini</span>
+                        </button>
+                        <button class="image-type-btn" data-image-type="classic" onclick="selectImageType(this)">
+                            <span class="mode-icon">🎭</span>
+                            <span class="mode-name">Meme Classici</span>
+                            <span class="mode-desc">Drake, Doge, etc.</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Modalità di gioco</label>
+                    <div class="mode-selector">
+                        <button class="mode-btn active" data-mode="normal" onclick="selectMode(this)">
+                            <span class="mode-icon">🎲</span>
+                            <span class="mode-name">Normale</span>
+                            <span class="mode-desc">Template casuali</span>
+                        </button>
+                        <button class="mode-btn" data-mode="themes" onclick="selectMode(this)">
+                            <span class="mode-icon">🎯</span>
+                            <span class="mode-name">Temi</span>
+                            <span class="mode-desc">Temi a sorpresa</span>
+                        </button>
+                        <button class="mode-btn" data-mode="same_meme" onclick="selectMode(this)">
+                            <span class="mode-icon">🎨</span>
+                            <span class="mode-name">Stesso Meme</span>
+                            <span class="mode-desc">Stesso template</span>
+                        </button>
+                        <button class="mode-btn" data-mode="relaxed" onclick="selectMode(this)">
+                            <span class="mode-icon">😌</span>
+                            <span class="mode-name">Rilassata</span>
+                            <span class="mode-desc">Senza punteggio</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="num-rounds">Numero di round</label>
+                    <div class="rounds-selector">
+                        <button class="round-btn" onclick="changeRounds(-1)">−</button>
+                        <span id="num-rounds" class="rounds-display">5</span>
+                        <button class="round-btn" onclick="changeRounds(1)">+</button>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary btn-large btn-full" onclick="createGame()">
+                    <span class="btn-icon">✨</span>
+                    <span class="btn-text">Crea Stanza</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- Join Game Screen -->
+        <section id="join-screen" class="screen">
+            <button class="back-btn" onclick="showScreen('home-screen')">← Indietro</button>
+            
+            <div class="form-container">
+                <h2 class="screen-title">🚀 Unisciti</h2>
+                
+                <div class="form-group">
+                    <label for="join-name">Il tuo nome</label>
+                    <input type="text" id="join-name" placeholder="Come ti chiami?" maxlength="20" autocomplete="off">
+                </div>
+
+                <div class="form-group">
+                    <label for="room-code">Codice Stanza</label>
+                    <input type="text" id="room-code" placeholder="Es: ABCD" maxlength="4" class="room-code-input" autocomplete="off">
+                </div>
+
+                <button class="btn btn-primary btn-large btn-full" onclick="joinGame()">
+                    <span class="btn-icon">🎯</span>
+                    <span class="btn-text">Entra nella Stanza</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- Lobby Screen -->
+        <section id="lobby-screen" class="screen">
+            <div class="lobby-header">
+                <h2 class="screen-title">🎪 Lobby</h2>
+                <div class="room-code-display">
+                    <span class="room-code-label">Codice Stanza</span>
+                    <span id="display-room-code" class="room-code-value">ABCD</span>
+                    <button class="copy-btn" onclick="copyRoomCode()">📋</button>
+                </div>
+            </div>
+
+            <div class="game-settings-display">
+                <div class="setting-badge" id="image-type-badge">🖼️ Personalizzate</div>
+                <div class="setting-badge" id="mode-badge">🎲 Normale</div>
+                <div class="setting-badge" id="rounds-badge">5 Round</div>
+            </div>
+
+            <div class="players-container">
+                <h3 class="players-title">Giocatori <span id="players-count">(1/8)</span></h3>
+                <div id="players-list" class="players-list">
+                    <!-- Players will be added here -->
+                </div>
+            </div>
+
+            <div class="lobby-actions">
+                <button id="start-game-btn" class="btn btn-primary btn-large btn-full" onclick="startGame()" style="display: none;">
+                    <span class="btn-icon">🚀</span>
+                    <span class="btn-text">Inizia Partita</span>
+                </button>
+                <p id="waiting-message" class="waiting-message">In attesa che l'host avvii la partita...</p>
+            </div>
+        </section>
+
+        <!-- Game Screen -->
+        <section id="game-screen" class="screen">
+            <!-- Creating Phase -->
+            <div id="creating-phase" class="game-phase">
+                <!-- Header -->
+                <div class="round-header">
+                    <button class="header-btn" onclick="showScreen('lobby-screen')">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M19 12H5M12 19l-7-7 7-7"/>
+                        </svg>
+                    </button>
+                    <div class="round-title-container">
+                        <div class="round-number-display">Round <span id="round-number">1</span>/<span id="round-total">5</span></div>
+                        <div class="round-title">Etichetta il tuo meme</div>
+                    </div>
+                    <button class="header-btn">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M4 6h16M4 12h16M4 18h16"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Progress Bar -->
+                <div class="progress-bar-container">
+                    <div id="progress-bar" class="progress-bar" style="width: 33%"></div>
+                </div>
+
+                <!-- Template Name -->
+                <div class="template-name-display">
+                    <span id="template-name">SaltBae</span>
+                </div>
+
+                <!-- Meme Preview Card -->
+                <div class="meme-preview-card">
+                    <div class="meme-text-top" id="preview-text-1">Testo 1</div>
+                    <div class="meme-image-wrapper">
+                        <img id="template-image" src="" alt="Template meme" class="meme-preview-image" onerror="this.classList.add('no-image')">
+                        <div id="image-placeholder" class="image-placeholder" style="display: none;">
+                            <span>🖼️</span>
+                            <span>Nessuna immagine</span>
+                        </div>
+                        <div class="meme-text-overlay" id="preview-text-2">Testo 2</div>
+                    </div>
+                </div>
+
+                <!-- Change Meme Button -->
+                <button class="change-meme-btn" onclick="requestNewMeme()">
+                    <span>CAMBIA MEME (<span id="meme-changes-left">5</span>)</span>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M23 4v6h-6M1 20v-6h6"/>
+                        <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+                    </svg>
+                </button>
+
+                <!-- Topic Display -->
+                <div id="topic-display" class="topic-display">
+                    <span class="topic-label">Il tuo topic:</span>
+                    <span id="topic-text" class="topic-badge">Imbarazzante 😳</span>
+                </div>
+
+                <!-- Text Inputs -->
+                <div class="meme-inputs">
+                    <input type="text" id="text-input-1" class="meme-text-input" placeholder="Testo 1..." maxlength="100" oninput="updatePreview()">
+                    <input type="text" id="text-input-2" class="meme-text-input" placeholder="Testo 2..." maxlength="100" oninput="updatePreview()">
+                </div>
+
+                <!-- Submit Button -->
+                <button class="submit-btn" onclick="submitMeme()">
+                    <span class="dots-icon">💬</span>
+                    <span>HO FINITO!</span>
+                    <span class="send-icon">✍️</span>
+                </button>
+
+                <!-- Waiting Indicator -->
+                <div id="waiting-others" class="waiting-indicator" style="display: none;">
+                    <div class="spinner"></div>
+                    <span>In attesa degli altri giocatori... <span id="ready-count">0/0</span></span>
+                </div>
+            </div>
+
+            <!-- Voting Phase -->
+            <div id="voting-phase" class="game-phase" style="display: none;">
+                <!-- Voting Header -->
+                <div class="voting-header">
+                    <div class="voting-title-container">
+                        <div class="meme-counter">Meme <span id="current-meme-index">1</span>/<span id="total-memes">4</span></div>
+                        <div class="voting-title">Vota il meme</div>
+                    </div>
+                </div>
+
+                <!-- Voting Progress Bar -->
+                <div class="voting-progress-container">
+                    <div id="voting-progress-bar" class="voting-progress-bar" style="width: 25%"></div>
+                </div>
+
+                <!-- Meme Card to Vote -->
+                <div class="voting-meme-card">
+                    <div class="voting-meme-text-top" id="voting-text-1">Testo del meme</div>
+                    <div class="voting-meme-image-wrapper">
+                        <img id="voting-meme-image" src="" alt="Meme" class="voting-meme-image">
+                        <div class="voting-meme-text-overlay" id="voting-text-2"></div>
+                    </div>
+                </div>
+
+                <!-- Creator Badge (shown when it's your meme) -->
+                <div id="your-meme-badge" class="your-meme-badge" style="display: none;">
+                    <span>🎨 Questo è il tuo meme! Attendi...</span>
+                </div>
+
+                <!-- Vote Buttons -->
+                <div id="vote-buttons" class="vote-buttons">
+                    <button class="vote-btn vote-up" onclick="submitVoteValue(1)">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 4l-8 8h5v8h6v-8h5z"/>
+                        </svg>
+                    </button>
+                    <button class="vote-btn vote-meh" onclick="submitVoteValue(0)">
+                        <span class="meh-face">¯\_(ツ)_/¯</span>
+                        <span class="meh-text">Meh</span>
+                    </button>
+                    <button class="vote-btn vote-down" onclick="submitVoteValue(-1)">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 20l8-8h-5v-8h-6v8h-5z"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Waiting for others -->
+                <div id="voting-waiting" class="waiting-indicator" style="display: none;">
+                    <div class="spinner"></div>
+                    <span>In attesa degli altri... <span id="vote-count">0/0</span></span>
+                </div>
+            </div>
+
+            <!-- Results Phase -->
+            <div id="results-phase" class="game-phase" style="display: none;">
+                <h3 class="phase-title" id="results-title">📊 Risultati del Round</h3>
+                
+                <div id="round-results" class="results-container">
+                    <!-- Results will be added here -->
+                </div>
+
+                <div class="leaderboard-container">
+                    <h4 class="leaderboard-title">🏆 Classifica</h4>
+                    <div id="leaderboard" class="leaderboard">
+                        <!-- Leaderboard will be added here -->
+                    </div>
+                </div>
+
+                <button id="next-round-btn" class="btn btn-primary btn-large btn-full" onclick="nextRound()" style="display: none;">
+                    <span class="btn-icon">➡️</span>
+                    <span class="btn-text">Prossimo Round</span>
+                </button>
+                <p id="results-waiting" class="waiting-message">In attesa che l'host continui...</p>
+            </div>
+
+            <!-- Final Results -->
+            <div id="final-phase" class="game-phase" style="display: none;">
+                <div class="winner-announcement">
+                    <div class="confetti-container">
+                        <span class="confetti">🎉</span>
+                        <span class="confetti">🎊</span>
+                        <span class="confetti">✨</span>
+                        <span class="confetti">🏆</span>
+                        <span class="confetti">⭐</span>
+                    </div>
+                    <h2 class="winner-title">🏆 VINCITORE 🏆</h2>
+                    <div id="winner-name" class="winner-name">Nome Giocatore</div>
+                    <div id="winner-score" class="winner-score">0 punti</div>
+                </div>
+
+                <div class="final-leaderboard-container">
+                    <h4 class="leaderboard-title">📊 Classifica Finale</h4>
+                    <div id="final-leaderboard" class="leaderboard">
+                        <!-- Final leaderboard will be added here -->
+                    </div>
+                </div>
+
+                <button id="play-again-btn" class="btn btn-primary btn-large btn-full" onclick="nextRound()" style="display: none;">
+                    <span class="btn-icon">🔄</span>
+                    <span class="btn-text">Gioca Ancora</span>
+                </button>
+                <p id="final-waiting" class="waiting-message">In attesa che l'host riavvii...</p>
+            </div>
+        </section>
+    </main>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="/static/js/game.js"></script>
+</body>
+</html>
+

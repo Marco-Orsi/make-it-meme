@@ -1,0 +1,122 @@
+[
+  {
+    "name": "Drake che approva/disapprova",
+    "description": "Drake che rifiuta qualcosa (sopra) e approva qualcos'altro (sotto)",
+    "category": "Reazioni",
+    "image_file": "drake"
+  },
+  {
+    "name": "Distracted Boyfriend",
+    "description": "Ragazzo che si gira a guardare un'altra ragazza mentre la fidanzata lo guarda male",
+    "category": "Reazioni",
+    "image_file": "distracted-boyfriend"
+  },
+  {
+    "name": "Two Buttons",
+    "description": "Personaggio che deve scegliere tra due pulsanti e suda",
+    "category": "Reazioni",
+    "image_file": "two-buttons"
+  },
+  {
+    "name": "Is This a Pigeon?",
+    "description": "Personaggio che indica una farfalla chiedendo 'è questo un piccione?'",
+    "category": "Reazioni",
+    "image_file": "is-this-a-pigeon"
+  },
+  {
+    "name": "Surprised Pikachu",
+    "description": "Pikachu con espressione sorpresa",
+    "category": "Reazioni",
+    "image_file": "surprised-pikachu"
+  },
+  {
+    "name": "Woman Yelling at Cat",
+    "description": "Donna che urla vs gatto seduto a tavola con espressione confusa",
+    "category": "Animali",
+    "image_file": "woman-yelling-cat"
+  },
+  {
+    "name": "Doge",
+    "description": "Shiba Inu con pensieri in Comic Sans",
+    "category": "Animali",
+    "image_file": "doge"
+  },
+  {
+    "name": "Grumpy Cat",
+    "description": "Gatto dall'espressione costantemente imbronciata",
+    "category": "Animali",
+    "image_file": "grumpy-cat"
+  },
+  {
+    "name": "Success Kid",
+    "description": "Bambino con pugno alzato in segno di vittoria",
+    "category": "Animali",
+    "image_file": "success-kid"
+  },
+  {
+    "name": "This Is Fine",
+    "description": "Cane seduto in una stanza in fiamme che dice 'va tutto bene'",
+    "category": "Film e TV",
+    "image_file": "this-is-fine"
+  },
+  {
+    "name": "Expanding Brain",
+    "description": "Serie di cervelli che si espandono progressivamente",
+    "category": "Film e TV",
+    "image_file": "expanding-brain"
+  },
+  {
+    "name": "Change My Mind",
+    "description": "Steven Crowder seduto a un tavolo con cartello 'cambia la mia opinione'",
+    "category": "Film e TV",
+    "image_file": "change-my-mind"
+  },
+  {
+    "name": "Galaxy Brain",
+    "description": "Testa che diventa sempre più luminosa e galattica",
+    "category": "Internet Culture",
+    "image_file": "galaxy-brain"
+  },
+  {
+    "name": "Stonks",
+    "description": "Meme man davanti a grafico in salita con scritta 'stonks'",
+    "category": "Internet Culture",
+    "image_file": "stonks"
+  },
+  {
+    "name": "They're The Same Picture",
+    "description": "Pam di The Office che mostra due immagini identiche",
+    "category": "Internet Culture",
+    "image_file": "same-picture"
+  },
+  {
+    "name": "Sleeping vs Waking Up",
+    "description": "Persona rilassata dormendo vs stressata svegliandosi",
+    "category": "Situazioni Quotidiane",
+    "image_file": "sleeping-waking"
+  },
+  {
+    "name": "Me Explaining",
+    "description": "Persona che spiega appassionatamente a qualcuno disinteressato",
+    "category": "Situazioni Quotidiane",
+    "image_file": "me-explaining"
+  },
+  {
+    "name": "Ancient Aliens Guy",
+    "description": "Giorgio Tsoukalos con capelli pazzi che dice 'aliens'",
+    "category": "Situazioni Quotidiane",
+    "image_file": "ancient-aliens"
+  },
+  {
+    "name": "Hide the Pain Harold",
+    "description": "Uomo anziano con sorriso forzato che nasconde il dolore",
+    "category": "Situazioni Quotidiane",
+    "image_file": "hide-pain-harold"
+  },
+  {
+    "name": "Roll Safe",
+    "description": "Uomo che si tocca la tempia con espressione intelligente",
+    "category": "Situazioni Quotidiane",
+    "image_file": "roll-safe"
+  }
+]
