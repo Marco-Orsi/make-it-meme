@@ -42,6 +42,36 @@
             <a href="/suggestions" class="suggestions-link">
                 💡 Suggerisci nuove funzionalità
             </a>
+
+            <!-- Upload Immagini Section -->
+            <div class="upload-section">
+                <button class="upload-toggle-btn" onclick="toggleUploadSection()">
+                    🖼️ Gestisci Immagini Meme
+                    <span class="toggle-arrow" id="toggle-arrow">▼</span>
+                </button>
+                
+                <div id="upload-panel" class="upload-panel" style="display: none;">
+                    <form id="upload-form" class="upload-form" enctype="multipart/form-data">
+                        <input type="hidden" name="image_type" value="custom">
+                        
+                        <div class="file-drop-zone" id="drop-zone">
+                            <input type="file" id="file-input" name="images" multiple accept="image/*" style="display: none;">
+                            <div class="drop-zone-content">
+                                <span class="drop-icon">📁</span>
+                                <p>Trascina le immagini qui</p>
+                                <p class="drop-hint">oppure <span class="browse-link" onclick="document.getElementById('file-input').click()">sfoglia</span></p>
+                            </div>
+                        </div>
+                        
+                        <div id="preview-container" class="preview-container"></div>
+                        
+                        <button type="submit" class="btn btn-primary btn-full upload-btn" id="upload-btn" style="display: none;">
+                            <span class="btn-icon">⬆️</span>
+                            <span class="btn-text">Carica Immagini</span>
+                        </button>
+                    </form>
+                </div>
+            </div>
         </section>
 
         <!-- Create Game Screen -->
@@ -54,22 +84,6 @@
                 <div class="form-group">
                     <label for="create-name">Il tuo nome</label>
                     <input type="text" id="create-name" placeholder="Come ti chiami?" maxlength="20" autocomplete="off">
-                </div>
-
-                <div class="form-group">
-                    <label>Tipo di immagini</label>
-                    <div class="image-type-selector">
-                        <button class="image-type-btn active" data-image-type="custom" onclick="selectImageType(this)">
-                            <span class="mode-icon">🖼️</span>
-                            <span class="mode-name">Personalizzate</span>
-                            <span class="mode-desc">Le tue immagini</span>
-                        </button>
-                        <button class="image-type-btn" data-image-type="classic" onclick="selectImageType(this)">
-                            <span class="mode-icon">🎭</span>
-                            <span class="mode-name">Meme Classici</span>
-                            <span class="mode-desc">Drake, Doge, etc.</span>
-                        </button>
-                    </div>
                 </div>
 
                 <div class="form-group">
@@ -164,7 +178,6 @@
             </div>
 
             <div class="game-settings-display">
-                <div class="setting-badge" id="image-type-badge">🖼️ Personalizzate</div>
                 <div class="setting-badge" id="mode-badge">🎲 Normale</div>
                 <div class="setting-badge" id="rounds-badge">5 Round</div>
                 <div class="setting-badge" id="timer-badge">⏱️ 60s</div>

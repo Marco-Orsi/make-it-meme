@@ -12,7 +12,12 @@ import uuid
 from datetime import datetime
 from flask import Flask, render_template, session, request, redirect, url_for, jsonify
 from flask_socketio import SocketIO, emit, join_room, leave_room
+from werkzeug.utils import secure_filename
 from data.templates_db import TemplatesDB
+
+# Configurazione upload
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 
 app = Flask(__name__, template_folder='web/templates', static_folder='web/static')
 app.secret_key = 'makeitmeme_secret_key_2024'
@@ -242,6 +247,74 @@ def game_room(room_code):
     if room_code not in games:
         return render_template('index.html', error="Stanza non trovata!")
     return render_template('game.html', room_code=room_code)
+
+
+# ===================================
+# Image Upload Routes
+# ===================================
+
+def allowed_file(filename):
+    """Verifica se l'estensione del file è consentita"""
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+@app.route('/api/images/upload', methods=['POST'])
+def upload_images():
+    """Carica una o più immagini"""
+    if 'images' not in request.files:
+        return jsonify({'success': False, 'message': 'Nessun file selezionato'}), 400
+    
+    files = request.files.getlist('images')
+    image_type = request.form.get('image_type', 'custom')
+    
+    # Determina la cartella di destinazione
+    if image_type == 'classic':
+        upload_folder = templates_db.CLASSIC_PATH
+    else:
+        upload_folder = templates_db.CUSTOM_PATH
+    
+    # Crea la cartella se non esiste
+    os.makedirs(upload_folder, exist_ok=True)
+    
+    uploaded = []
+    errors = []
+    
+    for file in files:
+        if file.filename == '':
+            continue
+        
+        if not allowed_file(file.filename):
+            errors.append(f'{file.filename}: formato non supportato')
+            continue
+        
+        # Genera un nome file sicuro
+        filename = secure_filename(file.filename)
+        
+        # Se il file esiste già, aggiungi un suffisso
+        base, ext = os.path.splitext(filename)
+        counter = 1
+        while os.path.exists(os.path.join(upload_folder, filename)):
+            filename = f"{base}_{counter}{ext}"
+            counter += 1
+        
+        filepath = os.path.join(upload_folder, filename)
+        
+        try:
+            file.save(filepath)
+            uploaded.append({
+                'name': filename,
+                'type': image_type,
+                'url': f'/static/images/memes/{image_type}/{filename}'
+            })
+        except Exception as e:
+            errors.append(f'{file.filename}: errore durante il salvataggio')
+    
+    return jsonify({
+        'success': len(uploaded) > 0,
+        'uploaded': uploaded,
+        'errors': errors,
+        'message': f'{len(uploaded)} immagini caricate' + (f', {len(errors)} errori' if errors else '')
+    })
 
 
 # ===================================

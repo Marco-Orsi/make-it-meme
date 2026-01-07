@@ -12,7 +12,6 @@ let gameState = {
     playerId: null,
     isHost: false,
     mode: 'normal',
-    imageType: 'custom',
     numRounds: 5,
     timerDuration: 60,
     currentRound: 0,
@@ -23,11 +22,6 @@ let gameState = {
 let timerInterval = null;
 let timerSeconds = 60;
 
-// Image type labels
-const IMAGE_TYPE_LABELS = {
-    'custom': '🖼️ Personalizzate',
-    'classic': '🎭 Meme Classici'
-};
 
 // Mode labels
 const MODE_LABELS = {
@@ -65,10 +59,6 @@ function selectMode(btn) {
     btn.classList.add('active');
 }
 
-function selectImageType(btn) {
-    document.querySelectorAll('.image-type-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-}
 
 function selectTimer(btn) {
     document.querySelectorAll('.timer-btn').forEach(b => b.classList.remove('active'));
@@ -273,8 +263,6 @@ function createGame() {
     
     const modeBtn = document.querySelector('.mode-btn.active');
     const mode = modeBtn ? modeBtn.dataset.mode : 'normal';
-    const imageTypeBtn = document.querySelector('.image-type-btn.active');
-    const imageType = imageTypeBtn ? imageTypeBtn.dataset.imageType : 'custom';
     const numRounds = parseInt(document.getElementById('num-rounds').textContent);
     const timerBtn = document.querySelector('.timer-btn.active');
     const timerDuration = timerBtn ? parseInt(timerBtn.dataset.timer) : 60;
@@ -282,7 +270,7 @@ function createGame() {
     socket.emit('create_game', {
         player_name: name,
         mode: mode,
-        image_type: imageType,
+        image_type: 'custom',
         num_rounds: numRounds,
         timer_duration: timerDuration
     });
@@ -377,13 +365,11 @@ socket.on('game_created', (data) => {
     gameState.playerId = data.player_id;
     gameState.isHost = data.is_host;
     gameState.mode = data.mode;
-    gameState.imageType = data.image_type;
     gameState.numRounds = data.num_rounds;
     gameState.timerDuration = data.timer_duration || 60;
     
     document.getElementById('display-room-code').textContent = data.room_code;
     document.getElementById('mode-badge').textContent = MODE_LABELS[data.mode];
-    document.getElementById('image-type-badge').textContent = IMAGE_TYPE_LABELS[data.image_type];
     document.getElementById('rounds-badge').textContent = `${data.num_rounds} Round`;
     document.getElementById('timer-badge').textContent = `⏱️ ${gameState.timerDuration}s`;
     
@@ -397,13 +383,11 @@ socket.on('game_joined', (data) => {
     gameState.playerId = data.player_id;
     gameState.isHost = data.is_host;
     gameState.mode = data.mode;
-    gameState.imageType = data.image_type;
     gameState.numRounds = data.num_rounds;
     gameState.timerDuration = data.timer_duration || 60;
     
     document.getElementById('display-room-code').textContent = data.room_code;
     document.getElementById('mode-badge').textContent = MODE_LABELS[data.mode];
-    document.getElementById('image-type-badge').textContent = IMAGE_TYPE_LABELS[data.image_type];
     document.getElementById('rounds-badge').textContent = `${data.num_rounds} Round`;
     document.getElementById('timer-badge').textContent = `⏱️ ${gameState.timerDuration}s`;
     
@@ -744,5 +728,150 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('room-code')?.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') joinGame();
     });
+    
+    // Setup image upload
+    setupImageUpload();
 });
+
+
+// ===================================
+// Image Upload Functions
+// ===================================
+
+let selectedFiles = [];
+
+function toggleUploadSection() {
+    const panel = document.getElementById('upload-panel');
+    const arrow = document.getElementById('toggle-arrow');
+    
+    if (panel.style.display === 'none') {
+        panel.style.display = 'block';
+        arrow.textContent = '▲';
+    } else {
+        panel.style.display = 'none';
+        arrow.textContent = '▼';
+    }
+}
+
+function setupImageUpload() {
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+    const uploadForm = document.getElementById('upload-form');
+    
+    if (!dropZone || !fileInput) return;
+    
+    // Drag and drop events
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('drag-over');
+    });
+    
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('drag-over');
+    });
+    
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('drag-over');
+        handleFiles(e.dataTransfer.files);
+    });
+    
+    // File input change
+    fileInput.addEventListener('change', () => {
+        handleFiles(fileInput.files);
+    });
+    
+    // Form submit
+    if (uploadForm) {
+        uploadForm.addEventListener('submit', uploadImages);
+    }
+}
+
+function handleFiles(files) {
+    selectedFiles = Array.from(files).filter(file => 
+        file.type.startsWith('image/')
+    );
+    
+    updatePreview();
+}
+
+function updatePreview() {
+    const container = document.getElementById('preview-container');
+    const uploadBtn = document.getElementById('upload-btn');
+    
+    if (!container) return;
+    
+    if (selectedFiles.length === 0) {
+        container.innerHTML = '';
+        if (uploadBtn) uploadBtn.style.display = 'none';
+        return;
+    }
+    
+    if (uploadBtn) uploadBtn.style.display = 'flex';
+    
+    container.innerHTML = selectedFiles.map((file, index) => {
+        const url = URL.createObjectURL(file);
+        return `
+            <div class="preview-item">
+                <img src="${url}" alt="${file.name}">
+                <button type="button" class="preview-remove" onclick="removePreviewFile(${index})">×</button>
+                <span class="preview-name">${file.name}</span>
+            </div>
+        `;
+    }).join('');
+}
+
+function removePreviewFile(index) {
+    selectedFiles.splice(index, 1);
+    updatePreview();
+}
+
+async function uploadImages(e) {
+    e.preventDefault();
+    
+    if (selectedFiles.length === 0) {
+        showToast('Seleziona almeno un\'immagine!', 'error');
+        return;
+    }
+    
+    const formData = new FormData();
+    const imageType = document.querySelector('input[name="image_type"]:checked').value;
+    
+    formData.append('image_type', imageType);
+    selectedFiles.forEach(file => {
+        formData.append('images', file);
+    });
+    
+    const uploadBtn = document.getElementById('upload-btn');
+    if (uploadBtn) {
+        uploadBtn.disabled = true;
+        uploadBtn.innerHTML = '<span class="btn-icon">⏳</span><span class="btn-text">Caricamento...</span>';
+    }
+    
+    try {
+        const response = await fetch('/api/images/upload', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showToast(result.message, 'success');
+            selectedFiles = [];
+            updatePreview();
+            document.getElementById('file-input').value = '';
+        } else {
+            showToast(result.message || 'Errore durante l\'upload', 'error');
+        }
+    } catch (error) {
+        showToast('Errore di connessione', 'error');
+    } finally {
+        if (uploadBtn) {
+            uploadBtn.disabled = false;
+            uploadBtn.innerHTML = '<span class="btn-icon">⬆️</span><span class="btn-text">Carica Immagini</span>';
+        }
+    }
+}
+
 
