@@ -107,6 +107,20 @@
                     </div>
                 </div>
 
+                <div class="form-group">
+                    <label>Timer creazione meme</label>
+                    <div class="timer-selector">
+                        <button class="timer-btn active" data-timer="60" onclick="selectTimer(this)">
+                            <span class="timer-icon">⏱️</span>
+                            <span class="timer-value">60s</span>
+                        </button>
+                        <button class="timer-btn" data-timer="90" onclick="selectTimer(this)">
+                            <span class="timer-icon">⏱️</span>
+                            <span class="timer-value">90s</span>
+                        </button>
+                    </div>
+                </div>
+
                 <button class="btn btn-primary btn-large btn-full" onclick="createGame()">
                     <span class="btn-icon">✨</span>
                     <span class="btn-text">Crea Stanza</span>
@@ -153,6 +167,7 @@
                 <div class="setting-badge" id="image-type-badge">🖼️ Personalizzate</div>
                 <div class="setting-badge" id="mode-badge">🎲 Normale</div>
                 <div class="setting-badge" id="rounds-badge">5 Round</div>
+                <div class="setting-badge" id="timer-badge">⏱️ 60s</div>
             </div>
 
             <div class="players-container">

@@ -14,9 +14,14 @@ let gameState = {
     mode: 'normal',
     imageType: 'custom',
     numRounds: 5,
+    timerDuration: 60,
     currentRound: 0,
     players: []
 };
+
+// Timer variables
+let timerInterval = null;
+let timerSeconds = 60;
 
 // Image type labels
 const IMAGE_TYPE_LABELS = {
@@ -62,6 +67,11 @@ function selectMode(btn) {
 
 function selectImageType(btn) {
     document.querySelectorAll('.image-type-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+}
+
+function selectTimer(btn) {
+    document.querySelectorAll('.timer-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
 }
 
@@ -122,8 +132,96 @@ function updateMemeChangesCounter() {
     }
     
     const btn = document.querySelector('.change-meme-btn');
-    if (btn && memeChangesLeft <= 0) {
-        btn.disabled = true;
+    if (btn) {
+        // Abilita o disabilita il bottone in base ai cambi disponibili
+        btn.disabled = memeChangesLeft <= 0;
+    }
+}
+
+// ===================================
+// Timer Functions
+// ===================================
+
+function startTimer(duration) {
+    // Ferma eventuali timer precedenti
+    stopTimer();
+    
+    timerSeconds = duration;
+    
+    const progressBar = document.getElementById('progress-bar');
+    
+    // Inizializza la progress bar al 100%
+    if (progressBar) {
+        progressBar.style.width = '100%';
+        progressBar.classList.remove('progress-warning', 'progress-critical');
+    }
+    
+    timerInterval = setInterval(() => {
+        timerSeconds--;
+        
+        const progress = timerSeconds / duration;
+        
+        // Aggiorna la progress bar lineare
+        if (progressBar) {
+            progressBar.style.width = `${progress * 100}%`;
+            
+            // Cambia colore della progress bar
+            if (timerSeconds <= 10) {
+                progressBar.classList.add('progress-critical');
+                progressBar.classList.remove('progress-warning');
+            } else if (timerSeconds <= 30) {
+                progressBar.classList.add('progress-warning');
+                progressBar.classList.remove('progress-critical');
+            }
+        }
+        
+        // Tempo scaduto - auto submit
+        if (timerSeconds <= 0) {
+            stopTimer();
+            autoSubmitMeme();
+        }
+    }, 1000);
+}
+
+function stopTimer() {
+    if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+    }
+    
+    // Rimuovi classi di warning dalla progress bar
+    const progressBar = document.getElementById('progress-bar');
+    if (progressBar) {
+        progressBar.classList.remove('progress-warning', 'progress-critical');
+    }
+}
+
+function autoSubmitMeme() {
+    const text1 = document.getElementById('text-input-1');
+    const text2 = document.getElementById('text-input-2');
+    
+    // Se l'utente non ha ancora inviato il meme
+    if (!text1.disabled) {
+        // Invia anche se vuoto (con un testo di default)
+        const caption1 = text1.value.trim() || '...';
+        const caption2 = text2.value.trim();
+        
+        socket.emit('submit_meme', {
+            room_code: gameState.roomCode,
+            caption: caption2 ? `${caption1} / ${caption2}` : caption1,
+            text1: caption1,
+            text2: caption2
+        });
+        
+        // Disabilita gli input
+        text1.disabled = true;
+        text2.disabled = true;
+        
+        const submitBtn = document.querySelector('.submit-btn');
+        if (submitBtn) submitBtn.style.display = 'none';
+        document.getElementById('waiting-others').style.display = 'flex';
+        
+        showToast('Tempo scaduto! Meme inviato automaticamente.', 'info');
     }
 }
 
@@ -178,12 +276,15 @@ function createGame() {
     const imageTypeBtn = document.querySelector('.image-type-btn.active');
     const imageType = imageTypeBtn ? imageTypeBtn.dataset.imageType : 'custom';
     const numRounds = parseInt(document.getElementById('num-rounds').textContent);
+    const timerBtn = document.querySelector('.timer-btn.active');
+    const timerDuration = timerBtn ? parseInt(timerBtn.dataset.timer) : 60;
     
     socket.emit('create_game', {
         player_name: name,
         mode: mode,
         image_type: imageType,
-        num_rounds: numRounds
+        num_rounds: numRounds,
+        timer_duration: timerDuration
     });
 }
 
@@ -221,6 +322,9 @@ function submitMeme() {
         showToast('Scrivi almeno un testo!', 'error');
         return;
     }
+    
+    // Ferma il timer
+    stopTimer();
     
     // Combina i due testi per la caption
     const caption = text2 ? `${text1} / ${text2}` : text1;
@@ -275,11 +379,13 @@ socket.on('game_created', (data) => {
     gameState.mode = data.mode;
     gameState.imageType = data.image_type;
     gameState.numRounds = data.num_rounds;
+    gameState.timerDuration = data.timer_duration || 60;
     
     document.getElementById('display-room-code').textContent = data.room_code;
     document.getElementById('mode-badge').textContent = MODE_LABELS[data.mode];
     document.getElementById('image-type-badge').textContent = IMAGE_TYPE_LABELS[data.image_type];
     document.getElementById('rounds-badge').textContent = `${data.num_rounds} Round`;
+    document.getElementById('timer-badge').textContent = `⏱️ ${gameState.timerDuration}s`;
     
     updatePlayersList(data.players);
     showScreen('lobby-screen');
@@ -293,11 +399,13 @@ socket.on('game_joined', (data) => {
     gameState.mode = data.mode;
     gameState.imageType = data.image_type;
     gameState.numRounds = data.num_rounds;
+    gameState.timerDuration = data.timer_duration || 60;
     
     document.getElementById('display-room-code').textContent = data.room_code;
     document.getElementById('mode-badge').textContent = MODE_LABELS[data.mode];
     document.getElementById('image-type-badge').textContent = IMAGE_TYPE_LABELS[data.image_type];
     document.getElementById('rounds-badge').textContent = `${data.num_rounds} Round`;
+    document.getElementById('timer-badge').textContent = `⏱️ ${gameState.timerDuration}s`;
     
     updatePlayersList(data.players);
     showScreen('lobby-screen');
@@ -380,6 +488,11 @@ socket.on('round_start', (data) => {
     // Show creating phase
     showGamePhase('creating-phase');
     showScreen('game-screen');
+    
+    // Start timer
+    const timerDuration = data.timer_duration || gameState.timerDuration || 60;
+    gameState.timerDuration = timerDuration;
+    startTimer(timerDuration);
 });
 
 socket.on('player_ready', (data) => {
@@ -415,6 +528,9 @@ socket.on('new_meme', (data) => {
 let currentVotingMeme = null;
 
 socket.on('voting_start', (data) => {
+    // Ferma il timer della fase creazione
+    stopTimer();
+    
     currentVotingMeme = data.current_meme;
     displayMemeToVote(data.current_meme);
     showGamePhase('voting-phase');
@@ -526,8 +642,16 @@ function showRoundResults(data) {
                 <span class="result-player">${result.player_name}</span>
                 <span class="result-votes">+${result.round_score} punti</span>
             </div>
-            <div class="result-template">🖼️ ${result.template.name}</div>
-            <div class="result-caption">"${result.text1 || result.caption}${result.text2 ? ' / ' + result.text2 : ''}"</div>
+            <div class="result-meme-preview">
+                <div class="result-meme-text-top">${result.text1 || result.caption || ''}</div>
+                <div class="result-meme-image-wrapper">
+                    ${result.template && result.template.image 
+                        ? `<img src="/static/images/memes/${result.template.image}" alt="Meme" class="result-meme-image">`
+                        : `<div class="result-meme-placeholder">🖼️</div>`
+                    }
+                    ${result.text2 ? `<div class="result-meme-text-overlay">${result.text2}</div>` : ''}
+                </div>
+            </div>
         </div>
     `).join('');
     

@@ -50,12 +50,13 @@ def generate_room_code():
 class Game:
     """Classe che rappresenta una partita"""
     
-    def __init__(self, room_code, host_id, host_name, mode='normal', num_rounds=5, image_type='custom'):
+    def __init__(self, room_code, host_id, host_name, mode='normal', num_rounds=5, image_type='custom', timer_duration=60):
         self.room_code = room_code
         self.host_id = host_id
         self.mode = mode
         self.num_rounds = num_rounds
         self.image_type = image_type  # 'classic' o 'custom'
+        self.timer_duration = timer_duration  # 60 o 90 secondi
         self.current_round = 0
         self.phase = 'lobby'  # lobby, creating, voting, results, final
         self.players = {host_id: {'name': host_name, 'score': 0, 'ready': False}}
@@ -360,9 +361,14 @@ def on_create_game(data):
     mode = data.get('mode', 'normal')
     image_type = data.get('image_type', 'custom')
     num_rounds = data.get('num_rounds', 5)
+    timer_duration = data.get('timer_duration', 60)
+    
+    # Valida timer (solo 60 o 90 secondi)
+    if timer_duration not in [60, 90]:
+        timer_duration = 60
     
     room_code = generate_room_code()
-    game = Game(room_code, request.sid, player_name, mode, num_rounds, image_type)
+    game = Game(room_code, request.sid, player_name, mode, num_rounds, image_type, timer_duration)
     games[room_code] = game
     
     join_room(room_code)
@@ -374,6 +380,7 @@ def on_create_game(data):
         'mode': mode,
         'image_type': image_type,
         'num_rounds': num_rounds,
+        'timer_duration': timer_duration,
         'players': get_players_info(game)
     })
 
@@ -412,6 +419,7 @@ def on_join_game(data):
         'mode': game.mode,
         'image_type': game.image_type,
         'num_rounds': game.num_rounds,
+        'timer_duration': game.timer_duration,
         'players': get_players_info(game)
     })
     
@@ -452,7 +460,8 @@ def on_start_game(data):
             'total_rounds': game.num_rounds,
             'template': game.templates[pid],
             'theme': game.current_theme,
-            'mode': game.mode
+            'mode': game.mode,
+            'timer_duration': game.timer_duration
         }, room=pid)
 
 
@@ -634,7 +643,8 @@ def on_next_round(data):
                 'total_rounds': game.num_rounds,
                 'template': game.templates[pid],
                 'theme': game.current_theme,
-                'mode': game.mode
+                'mode': game.mode,
+                'timer_duration': game.timer_duration
             }, room=pid)
 
 
