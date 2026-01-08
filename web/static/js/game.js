@@ -224,13 +224,20 @@ function updatePlayersList(players) {
     const list = document.getElementById('players-list');
     const count = document.getElementById('players-count');
     
-    count.textContent = `(${players.length}/8)`;
+    // Conta giocatori attivi (non disconnessi)
+    const activePlayers = players.filter(p => !p.disconnected);
+    const disconnectedCount = players.filter(p => p.disconnected).length;
+    
+    count.textContent = disconnectedCount > 0 
+        ? `(${activePlayers.length}/${players.length} - ${disconnectedCount} offline)` 
+        : `(${players.length}/8)`;
     
     list.innerHTML = players.map(player => `
-        <div class="player-item">
+        <div class="player-item ${player.disconnected ? 'player-disconnected' : ''}">
             <div class="player-avatar">${player.name.charAt(0).toUpperCase()}</div>
             <span class="player-name">${player.name}</span>
-            ${player.is_host ? '<span class="player-badge">Host</span>' : ''}
+            ${player.disconnected ? '<span class="player-badge disconnected-badge">⚠️ Offline</span>' : ''}
+            ${player.is_host && !player.disconnected ? '<span class="player-badge">Host</span>' : ''}
             ${player.score > 0 ? `<span class="player-score">${player.score} pts</span>` : ''}
         </div>
     `).join('');
@@ -240,8 +247,8 @@ function updatePlayersList(players) {
     const waitingMsg = document.getElementById('waiting-message');
     
     if (gameState.isHost) {
-        startBtn.style.display = players.length >= 2 ? 'flex' : 'none';
-        waitingMsg.style.display = players.length >= 2 ? 'none' : 'block';
+        startBtn.style.display = activePlayers.length >= 2 ? 'flex' : 'none';
+        waitingMsg.style.display = activePlayers.length >= 2 ? 'none' : 'block';
         waitingMsg.textContent = 'Servono almeno 2 giocatori per iniziare...';
     } else {
         startBtn.style.display = 'none';
@@ -340,6 +347,52 @@ function nextRound() {
     });
 }
 
+function forceAdvance() {
+    socket.emit('force_advance', {
+        room_code: gameState.roomCode
+    });
+    
+    // Nascondi il pulsante dopo averlo usato
+    hideForceAdvanceButton();
+}
+
+function showForceAdvanceButton() {
+    // Mostra il pulsante "Forza Avanzamento" solo se sono l'host
+    if (!gameState.isHost) return;
+    
+    let forceBtn = document.getElementById('force-advance-btn');
+    if (!forceBtn) {
+        // Crea il pulsante se non esiste
+        forceBtn = document.createElement('button');
+        forceBtn.id = 'force-advance-btn';
+        forceBtn.className = 'btn btn-warning force-advance-btn';
+        forceBtn.innerHTML = '<span class="btn-icon">⏩</span><span class="btn-text">Salta Disconnessi</span>';
+        forceBtn.onclick = forceAdvance;
+    }
+    forceBtn.style.display = 'flex';
+    
+    // Aggiungi il pulsante nella fase corrente
+    const waitingOthers = document.getElementById('waiting-others');
+    const votingWaiting = document.getElementById('voting-waiting');
+    
+    if (waitingOthers && waitingOthers.style.display !== 'none') {
+        if (!waitingOthers.contains(forceBtn)) {
+            waitingOthers.appendChild(forceBtn);
+        }
+    } else if (votingWaiting && votingWaiting.style.display !== 'none') {
+        if (!votingWaiting.contains(forceBtn)) {
+            votingWaiting.appendChild(forceBtn);
+        }
+    }
+}
+
+function hideForceAdvanceButton() {
+    const forceBtn = document.getElementById('force-advance-btn');
+    if (forceBtn) {
+        forceBtn.style.display = 'none';
+    }
+}
+
 // ===================================
 // Socket Event Handlers
 // ===================================
@@ -404,6 +457,16 @@ socket.on('player_joined', (data) => {
 socket.on('player_left', (data) => {
     updatePlayersList(data.players);
     showToast(`${data.player_name} ha lasciato la partita`, 'info');
+});
+
+socket.on('player_disconnected', (data) => {
+    updatePlayersList(data.players);
+    showToast(`${data.player_name} si è disconnesso`, 'warning');
+    
+    // Se sono l'host, mostro il pulsante per forzare l'avanzamento
+    if (gameState.isHost && data.disconnected_count > 0) {
+        showForceAdvanceButton();
+    }
 });
 
 socket.on('new_host', (data) => {

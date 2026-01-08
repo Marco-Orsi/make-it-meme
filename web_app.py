@@ -75,6 +75,8 @@ class Game:
         self.templates = {}  # {player_id: template}
         self.current_theme = None
         self.meme_changes = {}  # {player_id: changes_left}
+        self.disconnected_players = set()  # Giocatori disconnessi durante la partita
+        self.player_sids = {host_id: host_id}  # Mapping player_id -> session_id per riconnessione
         
     def add_player(self, player_id, player_name):
         """Aggiunge un giocatore alla partita"""
@@ -82,6 +84,7 @@ class Game:
             return False
         self.players[player_id] = {'name': player_name, 'score': 0, 'ready': False}
         self.player_order.append(player_id)
+        self.player_sids[player_id] = player_id
         return True
     
     def remove_player(self, player_id):
@@ -89,6 +92,30 @@ class Game:
         if player_id in self.players:
             del self.players[player_id]
             self.player_order.remove(player_id)
+            self.disconnected_players.discard(player_id)
+            if player_id in self.player_sids:
+                del self.player_sids[player_id]
+    
+    def mark_disconnected(self, player_id):
+        """Marca un giocatore come disconnesso senza rimuoverlo"""
+        if player_id in self.players:
+            self.disconnected_players.add(player_id)
+    
+    def mark_connected(self, player_id):
+        """Marca un giocatore come riconnesso"""
+        self.disconnected_players.discard(player_id)
+    
+    def get_active_players(self):
+        """Restituisce solo i giocatori attivi (non disconnessi)"""
+        return {pid: p for pid, p in self.players.items() if pid not in self.disconnected_players}
+    
+    def get_active_player_count(self):
+        """Restituisce il numero di giocatori attivi"""
+        return len(self.players) - len(self.disconnected_players)
+    
+    def is_player_disconnected(self, player_id):
+        """Verifica se un giocatore è disconnesso"""
+        return player_id in self.disconnected_players
     
     def start_round(self):
         """Inizia un nuovo round"""
@@ -125,8 +152,16 @@ class Game:
         }
         self.players[player_id]['ready'] = True
         
-        # Controlla se tutti hanno sottomesso
-        return len(self.memes) == len(self.players)
+        # Controlla se tutti i giocatori attivi hanno sottomesso
+        active_players = self.get_active_players()
+        active_submitted = sum(1 for pid in active_players if pid in self.memes)
+        return active_submitted == len(active_players)
+    
+    def check_all_memes_submitted(self):
+        """Verifica se tutti i giocatori attivi hanno sottomesso il meme"""
+        active_players = self.get_active_players()
+        active_submitted = sum(1 for pid in active_players if pid in self.memes)
+        return active_submitted == len(active_players)
     
     def start_voting(self):
         """Inizia la fase di votazione"""
@@ -134,8 +169,8 @@ class Game:
         for pid in self.players:
             self.players[pid]['ready'] = False
         
-        # Crea ordine casuale dei meme e inizializza
-        self.meme_order = list(self.memes.keys())
+        # Crea ordine casuale dei meme e inizializza (solo meme dei giocatori attivi)
+        self.meme_order = [pid for pid in self.memes.keys() if pid not in self.disconnected_players]
         random.shuffle(self.meme_order)
         self.current_meme_index = 0
         self.votes_for_current = {}
@@ -181,10 +216,16 @@ class Game:
         
         self.votes_for_current[voter_id] = True
         
-        # Controlla se tutti hanno votato
-        all_voted = len(self.votes_for_current) == len(self.players)
+        # Controlla se tutti i giocatori attivi hanno votato
+        all_voted = self.check_all_voted_current()
         
         return True, all_voted
+    
+    def check_all_voted_current(self):
+        """Verifica se tutti i giocatori attivi hanno votato per il meme corrente"""
+        active_players = self.get_active_players()
+        voted_count = sum(1 for pid in active_players if pid in self.votes_for_current)
+        return voted_count == len(active_players)
     
     def next_meme(self):
         """Passa al prossimo meme"""
@@ -404,27 +445,54 @@ def on_disconnect():
     sid = request.sid
     print(f"Client disconnesso: {sid}")
     
-    # Rimuovi il giocatore da tutte le partite
+    # Gestisce la disconnessione per ogni partita
     for room_code, game in list(games.items()):
         if sid in game.players:
             player_name = game.players[sid]['name']
-            game.remove_player(sid)
-            leave_room(room_code)
             
-            # Notifica gli altri giocatori
-            emit('player_left', {
-                'player_id': sid,
-                'player_name': player_name,
-                'players': get_players_info(game)
-            }, room=room_code)
-            
-            # Se non ci sono più giocatori, elimina la partita
-            if len(game.players) == 0:
-                del games[room_code]
-            # Se l'host se ne va, assegna un nuovo host
-            elif sid == game.host_id and game.player_order:
-                game.host_id = game.player_order[0]
-                emit('new_host', {'host_id': game.host_id}, room=room_code)
+            # Se siamo in lobby, rimuovi il giocatore completamente
+            if game.phase == 'lobby':
+                game.remove_player(sid)
+                leave_room(room_code)
+                
+                # Notifica gli altri giocatori
+                emit('player_left', {
+                    'player_id': sid,
+                    'player_name': player_name,
+                    'players': get_players_info(game),
+                    'disconnected_count': len(game.disconnected_players)
+                }, room=room_code)
+                
+                # Se non ci sono più giocatori, elimina la partita
+                if len(game.players) == 0:
+                    del games[room_code]
+                # Se l'host se ne va, assegna un nuovo host
+                elif sid == game.host_id and game.player_order:
+                    game.host_id = game.player_order[0]
+                    emit('new_host', {'host_id': game.host_id}, room=room_code)
+            else:
+                # Durante la partita, marca come disconnesso invece di rimuovere
+                game.mark_disconnected(sid)
+                leave_room(room_code)
+                
+                # Notifica gli altri giocatori della disconnessione
+                emit('player_disconnected', {
+                    'player_id': sid,
+                    'player_name': player_name,
+                    'players': get_players_info(game),
+                    'disconnected_count': len(game.disconnected_players),
+                    'active_count': game.get_active_player_count()
+                }, room=room_code)
+                
+                # Se l'host si disconnette, assegna un nuovo host tra i giocatori attivi
+                if sid == game.host_id:
+                    active_players = [pid for pid in game.player_order if pid not in game.disconnected_players]
+                    if active_players:
+                        game.host_id = active_players[0]
+                        emit('new_host', {'host_id': game.host_id}, room=room_code)
+                
+                # Controlla se dobbiamo avanzare automaticamente
+                check_and_advance_game(game, room_code)
 
 
 @socketio.on('create_game')
@@ -526,16 +594,17 @@ def on_start_game(data):
     # Inizia il primo round
     game.start_round()
     
-    # Invia i template a ogni giocatore
+    # Invia i template a ogni giocatore attivo
     for pid in game.players:
-        emit('round_start', {
-            'round': game.current_round,
-            'total_rounds': game.num_rounds,
-            'template': game.templates[pid],
-            'theme': game.current_theme,
-            'mode': game.mode,
-            'timer_duration': game.timer_duration
-        }, room=pid)
+        if pid not in game.disconnected_players:
+            emit('round_start', {
+                'round': game.current_round,
+                'total_rounds': game.num_rounds,
+                'template': game.templates[pid],
+                'theme': game.current_theme,
+                'mode': game.mode,
+                'timer_duration': game.timer_duration
+            }, room=pid)
 
 
 @socketio.on('request_new_meme')
@@ -589,14 +658,17 @@ def on_submit_meme(data):
     game = games[room_code]
     all_submitted = game.submit_meme(request.sid, caption, text1, text2)
     
+    # Conta solo i meme dei giocatori attivi
+    active_memes = sum(1 for pid in game.get_active_players() if pid in game.memes)
+    
     # Notifica che il giocatore ha finito
     emit('player_ready', {
         'player_id': request.sid,
-        'ready_count': len(game.memes),
-        'total_players': len(game.players)
+        'ready_count': active_memes,
+        'total_players': game.get_active_player_count()
     }, room=room_code)
     
-    # Se tutti hanno sottomesso, inizia la votazione
+    # Se tutti i giocatori attivi hanno sottomesso, inizia la votazione
     if all_submitted:
         game.start_voting()
         
@@ -625,53 +697,22 @@ def on_submit_vote(data):
         emit('error', {'message': 'Errore nel voto!'})
         return
     
+    # Conta solo i voti dei giocatori attivi
+    active_votes = sum(1 for pid in game.get_active_players() if pid in game.votes_for_current)
+    
     # Notifica che il giocatore ha votato
     emit('player_voted', {
         'player_id': request.sid,
-        'vote_count': len(game.votes_for_current),
-        'total_players': len(game.players)
+        'vote_count': active_votes,
+        'total_players': game.get_active_player_count()
     }, room=room_code)
     
-    # Se tutti hanno votato per questo meme, passa al prossimo
+    # Se tutti i giocatori attivi hanno votato per questo meme, passa al prossimo
     if all_voted:
         voting_complete = game.next_meme()
         
         if voting_complete:
-            # Tutti i meme sono stati votati, mostra i risultati
-            game.show_results()
-            
-            # Aggiorna punteggi globali
-            for pid, score in game.round_scores.items():
-                game.players[pid]['score'] += score
-            
-            # Prepara i risultati del round
-            round_results = []
-            for pid in game.players:
-                meme_data = game.memes.get(pid, {})
-                round_results.append({
-                    'player_id': pid,
-                    'player_name': game.players[pid]['name'],
-                    'text1': meme_data.get('text1', ''),
-                    'text2': meme_data.get('text2', ''),
-                    'caption': meme_data.get('caption', ''),
-                    'template': game.templates.get(pid, {}),
-                    'round_score': game.round_scores.get(pid, 0),
-                    'total_score': game.players[pid]['score']
-                })
-            
-            # Ordina per punteggio del round
-            round_results.sort(key=lambda x: x['round_score'], reverse=True)
-            
-            is_final = game.is_game_over()
-            winner = game.get_winner() if is_final else None
-            
-            emit('round_results', {
-                'results': round_results,
-                'is_final': is_final,
-                'winner': {'player_id': winner[0], 'name': winner[1], 'score': winner[2]} if winner else None,
-                'leaderboard': [{'player_id': pid, 'name': name, 'score': score} 
-                              for pid, name, score in game.get_sorted_results()]
-            }, room=room_code)
+            advance_to_results(game, room_code)
         else:
             # Invia il prossimo meme a tutti
             current_meme = game.get_current_meme()
@@ -699,6 +740,11 @@ def on_next_round(data):
         # Torna alla lobby
         game.phase = 'lobby'
         game.current_round = 0
+        # Rimuovi i giocatori disconnessi quando si torna in lobby
+        for pid in list(game.disconnected_players):
+            game.remove_player(pid)
+        game.disconnected_players.clear()
+        
         for pid in game.players:
             game.players[pid]['score'] = 0
             game.players[pid]['ready'] = False
@@ -710,15 +756,71 @@ def on_next_round(data):
         # Prossimo round
         game.start_round()
         
+        # Invia solo ai giocatori attivi (non disconnessi)
         for pid in game.players:
-            emit('round_start', {
-                'round': game.current_round,
-                'total_rounds': game.num_rounds,
-                'template': game.templates[pid],
-                'theme': game.current_theme,
-                'mode': game.mode,
-                'timer_duration': game.timer_duration
-            }, room=pid)
+            if pid not in game.disconnected_players:
+                emit('round_start', {
+                    'round': game.current_round,
+                    'total_rounds': game.num_rounds,
+                    'template': game.templates[pid],
+                    'theme': game.current_theme,
+                    'mode': game.mode,
+                    'timer_duration': game.timer_duration
+                }, room=pid)
+
+
+@socketio.on('force_advance')
+def on_force_advance(data):
+    """Forza l'avanzamento del gioco (solo admin)"""
+    room_code = data.get('room_code')
+    
+    if room_code not in games:
+        emit('error', {'message': 'Stanza non trovata!'})
+        return
+    
+    game = games[room_code]
+    
+    if request.sid != game.host_id:
+        emit('error', {'message': 'Solo l\'host può forzare l\'avanzamento!'})
+        return
+    
+    # Fase creazione: passa alla votazione
+    if game.phase == 'creating':
+        # Crea meme vuoti per chi non ha sottomesso
+        for pid in game.get_active_players():
+            if pid not in game.memes:
+                game.memes[pid] = {
+                    'caption': '...',
+                    'text1': '...',
+                    'text2': ''
+                }
+        
+        game.start_voting()
+        current_meme = game.get_current_meme()
+        
+        if current_meme:
+            emit('voting_start', {
+                'current_meme': current_meme
+            }, room=room_code)
+        else:
+            advance_to_results(game, room_code)
+    
+    # Fase votazione: passa al prossimo meme o ai risultati
+    elif game.phase == 'voting':
+        # Considera come votati tutti i giocatori attivi che non hanno ancora votato
+        for pid in game.get_active_players():
+            if pid not in game.votes_for_current:
+                game.votes_for_current[pid] = True
+        
+        voting_complete = game.next_meme()
+        
+        if voting_complete:
+            advance_to_results(game, room_code)
+        else:
+            current_meme = game.get_current_meme()
+            emit('next_meme_to_vote', {
+                'current_meme': current_meme
+            }, room=room_code)
 
 
 def get_players_info(game):
@@ -728,10 +830,87 @@ def get_players_info(game):
             'player_id': pid,
             'name': game.players[pid]['name'],
             'score': game.players[pid]['score'],
-            'is_host': pid == game.host_id
+            'is_host': pid == game.host_id,
+            'disconnected': pid in game.disconnected_players
         }
         for pid in game.player_order if pid in game.players
     ]
+
+
+def check_and_advance_game(game, room_code):
+    """Controlla se il gioco può avanzare automaticamente dopo una disconnessione"""
+    
+    # Se non ci sono più giocatori attivi, termina
+    if game.get_active_player_count() == 0:
+        return
+    
+    # Fase creazione: verifica se tutti gli attivi hanno sottomesso
+    if game.phase == 'creating':
+        if game.check_all_memes_submitted():
+            # Tutti gli attivi hanno finito, avvia votazione
+            game.start_voting()
+            current_meme = game.get_current_meme()
+            
+            if current_meme:
+                emit('voting_start', {
+                    'current_meme': current_meme
+                }, room=room_code)
+            else:
+                # Nessun meme da votare, vai ai risultati
+                advance_to_results(game, room_code)
+    
+    # Fase votazione: verifica se tutti gli attivi hanno votato
+    elif game.phase == 'voting':
+        if game.check_all_voted_current():
+            voting_complete = game.next_meme()
+            
+            if voting_complete:
+                advance_to_results(game, room_code)
+            else:
+                current_meme = game.get_current_meme()
+                emit('next_meme_to_vote', {
+                    'current_meme': current_meme
+                }, room=room_code)
+
+
+def advance_to_results(game, room_code):
+    """Avanza ai risultati del round"""
+    game.show_results()
+    
+    # Aggiorna punteggi globali
+    for pid, score in game.round_scores.items():
+        if pid in game.players:
+            game.players[pid]['score'] += score
+    
+    # Prepara i risultati del round
+    round_results = []
+    for pid in game.players:
+        if pid not in game.disconnected_players:
+            meme_data = game.memes.get(pid, {})
+            round_results.append({
+                'player_id': pid,
+                'player_name': game.players[pid]['name'],
+                'text1': meme_data.get('text1', ''),
+                'text2': meme_data.get('text2', ''),
+                'caption': meme_data.get('caption', ''),
+                'template': game.templates.get(pid, {}),
+                'round_score': game.round_scores.get(pid, 0),
+                'total_score': game.players[pid]['score']
+            })
+    
+    # Ordina per punteggio del round
+    round_results.sort(key=lambda x: x['round_score'], reverse=True)
+    
+    is_final = game.is_game_over()
+    winner = game.get_winner() if is_final else None
+    
+    emit('round_results', {
+        'results': round_results,
+        'is_final': is_final,
+        'winner': {'player_id': winner[0], 'name': winner[1], 'score': winner[2]} if winner else None,
+        'leaderboard': [{'player_id': pid, 'name': name, 'score': score} 
+                      for pid, name, score in game.get_sorted_results()]
+    }, room=room_code)
 
 
 if __name__ == '__main__':
