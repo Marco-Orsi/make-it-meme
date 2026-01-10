@@ -77,6 +77,7 @@ class Game:
         self.meme_changes = {}  # {player_id: changes_left}
         self.disconnected_players = set()  # Giocatori disconnessi durante la partita
         self.player_sids = {host_id: host_id}  # Mapping player_id -> session_id per riconnessione
+        self.super_votes_used = set()  # Giocatori che hanno usato il super voto in questa partita
         
     def add_player(self, player_id, player_name):
         """Aggiunge un giocatore alla partita"""
@@ -197,7 +198,7 @@ class Game:
             'total': len(self.meme_order)
         }
     
-    def submit_vote_for_meme(self, voter_id, vote_value):
+    def submit_vote_for_meme(self, voter_id, vote_value, super_vote=False):
         """Sottometti un voto per il meme corrente"""
         if self.current_meme_index >= len(self.meme_order):
             return False, False
@@ -213,6 +214,11 @@ class Game:
             elif vote_value == 0:
                 self.round_scores[creator_id] += 1  # +1 per meh
             # -1 non dà punti
+            
+            # Super vote: +3 punti extra (può essere usato solo una volta per partita)
+            if super_vote and voter_id not in self.super_votes_used:
+                self.round_scores[creator_id] += 3
+                self.super_votes_used.add(voter_id)
         
         self.votes_for_current[voter_id] = True
         
@@ -844,13 +850,14 @@ def on_submit_vote(data):
     """Sottometti un voto per il meme corrente"""
     room_code = data.get('room_code')
     vote_value = data.get('vote_value', 0)  # 1 = like, 0 = meh, -1 = dislike
+    super_vote = data.get('super_vote', False)  # +3 punti extra
     
     if room_code not in games:
         emit('error', {'message': 'Stanza non trovata!'})
         return
     
     game = games[room_code]
-    valid, all_voted = game.submit_vote_for_meme(request.sid, vote_value)
+    valid, all_voted = game.submit_vote_for_meme(request.sid, vote_value, super_vote)
     
     if not valid:
         emit('error', {'message': 'Errore nel voto!'})
@@ -903,6 +910,7 @@ def on_next_round(data):
         for pid in list(game.disconnected_players):
             game.remove_player(pid)
         game.disconnected_players.clear()
+        game.super_votes_used.clear()  # Reset super voti per la nuova partita
         
         for pid in game.players:
             game.players[pid]['score'] = 0

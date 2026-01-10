@@ -1267,6 +1267,52 @@ body {
     transition: all var(--transition-normal);
 }
 
+.vote-btn.vote-super {
+    width: 70px;
+    height: 70px;
+    background: transparent;
+    padding: 0;
+    overflow: hidden;
+}
+
+.vote-btn.vote-super:hover {
+    transform: scale(1.1);
+}
+
+.vote-btn.vote-super:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.vote-btn.vote-super:disabled:hover {
+    transform: none;
+}
+
+.vote-btn.vote-super.used {
+    opacity: 0.3;
+}
+
+.super-vote-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+    animation: superVoteSpin 3s linear infinite;
+}
+
+.vote-btn.vote-super:disabled .super-vote-img {
+    animation: none;
+}
+
+@keyframes superVoteSpin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
 .vote-btn.vote-up {
     width: 70px;
     height: 70px;

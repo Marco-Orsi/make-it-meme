@@ -776,6 +776,12 @@ function restoreVotingPhase(data) {
 socket.on('round_start', (data) => {
     gameState.currentRound = data.round;
     
+    // Reset super vote all'inizio di una nuova partita (round 1)
+    if (data.round === 1) {
+        superVoteUsed = false;
+        superVoteForCurrentMeme = false;
+    }
+    
     // Update round indicator
     document.getElementById('round-number').textContent = data.round;
     document.getElementById('round-total').textContent = data.total_rounds;
@@ -870,6 +876,10 @@ socket.on('new_meme', (data) => {
 // Current meme being voted
 let currentVotingMeme = null;
 
+// Super vote tracking - può essere usato solo UNA volta per partita
+let superVoteUsed = false;
+let superVoteForCurrentMeme = false; // Se il super vote è stato usato per il meme corrente
+
 socket.on('voting_start', (data) => {
     // Ferma il timer della fase creazione
     stopTimer();
@@ -907,6 +917,21 @@ function displayMemeToVote(meme) {
         memeImage.style.display = 'none';
     }
     
+    // Reset super vote for current meme (ma non il flag superVoteUsed)
+    superVoteForCurrentMeme = false;
+    
+    // Update super vote button state
+    const superBtn = document.getElementById('super-vote-btn');
+    if (superBtn) {
+        if (superVoteUsed) {
+            superBtn.classList.add('used');
+            superBtn.disabled = true;
+        } else {
+            superBtn.classList.remove('used');
+            superBtn.disabled = false;
+        }
+    }
+    
     // Check if this is the player's own meme
     const isOwnMeme = meme.creator_id === gameState.playerId;
     const voteButtons = document.getElementById('vote-buttons');
@@ -930,11 +955,37 @@ function displayMemeToVote(meme) {
     document.getElementById('voting-waiting').style.display = 'none';
 }
 
+function useSuperVote() {
+    if (superVoteUsed) {
+        showToast('Hai già usato il super voto!', 'error');
+        return;
+    }
+    
+    // Marca il super vote come usato per questo meme
+    superVoteForCurrentMeme = true;
+    
+    // Aggiorna UI del bottone
+    const superBtn = document.getElementById('super-vote-btn');
+    if (superBtn) {
+        superBtn.classList.add('used');
+        superBtn.disabled = true;
+    }
+    
+    showToast('+3 punti bonus attivato!', 'success');
+}
+
 function submitVoteValue(value, isSkip = false) {
     socket.emit('submit_vote', {
         room_code: gameState.roomCode,
-        vote_value: value
+        vote_value: value,
+        super_vote: superVoteForCurrentMeme
     });
+    
+    // Se abbiamo usato il super vote per questo meme, marcalo come usato definitivamente
+    if (superVoteForCurrentMeme) {
+        superVoteUsed = true;
+    }
+    superVoteForCurrentMeme = false;
     
     // Show waiting state
     const voteButtons = document.getElementById('vote-buttons');
