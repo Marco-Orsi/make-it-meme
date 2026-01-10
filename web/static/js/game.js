@@ -18,6 +18,53 @@ let gameState = {
     players: []
 };
 
+// Session storage keys
+const SESSION_KEYS = {
+    roomCode: 'mim_room_code',
+    playerName: 'mim_player_name',
+    playerId: 'mim_player_id'
+};
+
+// Save session to localStorage
+function saveSession() {
+    if (gameState.roomCode && gameState.playerId) {
+        const playerName = gameState.players.find(p => p.player_id === gameState.playerId)?.name || '';
+        localStorage.setItem(SESSION_KEYS.roomCode, gameState.roomCode);
+        localStorage.setItem(SESSION_KEYS.playerName, playerName);
+        localStorage.setItem(SESSION_KEYS.playerId, gameState.playerId);
+    }
+}
+
+// Clear session from localStorage
+function clearSession() {
+    localStorage.removeItem(SESSION_KEYS.roomCode);
+    localStorage.removeItem(SESSION_KEYS.playerName);
+    localStorage.removeItem(SESSION_KEYS.playerId);
+}
+
+// Get saved session
+function getSavedSession() {
+    return {
+        roomCode: localStorage.getItem(SESSION_KEYS.roomCode),
+        playerName: localStorage.getItem(SESSION_KEYS.playerName),
+        playerId: localStorage.getItem(SESSION_KEYS.playerId)
+    };
+}
+
+// Try to rejoin a saved session
+function tryRejoinSession() {
+    const session = getSavedSession();
+    if (session.roomCode && session.playerName) {
+        socket.emit('rejoin_game', {
+            room_code: session.roomCode,
+            player_name: session.playerName,
+            old_player_id: session.playerId
+        });
+        return true;
+    }
+    return false;
+}
+
 // Timer variables
 let timerInterval = null;
 let timerSeconds = 60;
@@ -406,8 +453,69 @@ socket.on('connect', () => {
         sessionStorage.removeItem('pendingRoomCode');
         document.getElementById('room-code').value = pendingCode;
         showScreen('join-screen');
+        return;
+    }
+    
+    // Try to rejoin a previous session
+    const session = getSavedSession();
+    if (session.roomCode && session.playerName) {
+        showRejoinBanner(session);
     }
 });
+
+// Show rejoin banner
+function showRejoinBanner(session) {
+    // Check if banner already exists
+    let banner = document.getElementById('rejoin-banner');
+    if (!banner) {
+        banner = document.createElement('div');
+        banner.id = 'rejoin-banner';
+        banner.className = 'rejoin-banner';
+        banner.innerHTML = `
+            <div class="rejoin-content">
+                <span class="rejoin-text">🎮 Partita in corso trovata: <strong>${session.roomCode}</strong></span>
+                <div class="rejoin-buttons">
+                    <button class="btn btn-primary rejoin-btn" onclick="attemptRejoin()">Rientra</button>
+                    <button class="btn btn-secondary rejoin-dismiss" onclick="dismissRejoinBanner()">✕</button>
+                </div>
+            </div>
+        `;
+        document.body.insertBefore(banner, document.body.firstChild);
+    }
+    banner.style.display = 'flex';
+}
+
+// Attempt to rejoin the game
+function attemptRejoin() {
+    const session = getSavedSession();
+    if (session.roomCode && session.playerName) {
+        socket.emit('rejoin_game', {
+            room_code: session.roomCode,
+            player_name: session.playerName,
+            old_player_id: session.playerId
+        });
+        
+        // Show loading state
+        const banner = document.getElementById('rejoin-banner');
+        if (banner) {
+            const content = banner.querySelector('.rejoin-content');
+            if (content) {
+                content.innerHTML = `
+                    <span class="rejoin-text">⏳ Riconnessione in corso...</span>
+                `;
+            }
+        }
+    }
+}
+
+// Dismiss rejoin banner
+function dismissRejoinBanner() {
+    const banner = document.getElementById('rejoin-banner');
+    if (banner) {
+        banner.style.display = 'none';
+    }
+    clearSession();
+}
 
 socket.on('error', (data) => {
     showToast(data.message, 'error');
@@ -429,6 +537,10 @@ socket.on('game_created', (data) => {
     updatePlayersList(data.players);
     showScreen('lobby-screen');
     showToast('Stanza creata!', 'success');
+    
+    // Salva la sessione per permettere il rejoin
+    saveSession();
+    dismissRejoinBanner();
 });
 
 socket.on('game_joined', (data) => {
@@ -447,6 +559,10 @@ socket.on('game_joined', (data) => {
     updatePlayersList(data.players);
     showScreen('lobby-screen');
     showToast('Ti sei unito alla stanza!', 'success');
+    
+    // Salva la sessione per permettere il rejoin
+    saveSession();
+    dismissRejoinBanner();
 });
 
 socket.on('player_joined', (data) => {
@@ -476,6 +592,149 @@ socket.on('new_host', (data) => {
     }
     updatePlayersList(gameState.players);
 });
+
+// Rejoin success - restore game state
+socket.on('rejoin_success', (data) => {
+    console.log('Rejoin success:', data);
+    
+    gameState.roomCode = data.room_code;
+    gameState.playerId = data.player_id;
+    gameState.isHost = data.is_host;
+    gameState.mode = data.mode;
+    gameState.numRounds = data.num_rounds;
+    gameState.timerDuration = data.timer_duration || 60;
+    gameState.currentRound = data.current_round;
+    
+    // Aggiorna la UI della lobby
+    document.getElementById('display-room-code').textContent = data.room_code;
+    document.getElementById('mode-badge').textContent = MODE_LABELS[data.mode];
+    document.getElementById('rounds-badge').textContent = `${data.num_rounds} Round`;
+    document.getElementById('timer-badge').textContent = `⏱️ ${gameState.timerDuration}s`;
+    
+    updatePlayersList(data.players);
+    dismissRejoinBanner();
+    
+    // Ripristina lo stato in base alla fase corrente
+    if (data.phase === 'lobby') {
+        showScreen('lobby-screen');
+    } else if (data.phase === 'creating') {
+        restoreCreatingPhase(data);
+    } else if (data.phase === 'voting') {
+        restoreVotingPhase(data);
+    } else if (data.phase === 'results') {
+        showScreen('game-screen');
+        showGamePhase('results-phase');
+    }
+    
+    // Aggiorna la sessione salvata con il nuovo player_id
+    saveSession();
+    showToast('Riconnesso alla partita!', 'success');
+});
+
+// Rejoin failed
+socket.on('rejoin_failed', (data) => {
+    console.log('Rejoin failed:', data);
+    dismissRejoinBanner();
+    clearSession();
+    
+    if (data.reason === 'use_normal_join') {
+        // La partita è in lobby, si può unire normalmente
+        const session = getSavedSession();
+        if (session.roomCode) {
+            document.getElementById('room-code').value = session.roomCode;
+            showScreen('join-screen');
+            showToast('La partita è in lobby, unisciti normalmente', 'info');
+        }
+    } else {
+        showToast(data.message || 'Impossibile riconnettersi', 'error');
+    }
+});
+
+// Player reconnected notification
+socket.on('player_reconnected', (data) => {
+    updatePlayersList(data.players);
+    showToast(`${data.player_name} si è riconnesso!`, 'success');
+    hideForceAdvanceButton();
+});
+
+// Restore creating phase state
+function restoreCreatingPhase(data) {
+    // Update round indicator
+    document.getElementById('round-number').textContent = data.current_round;
+    document.getElementById('round-total').textContent = data.total_rounds;
+    
+    // Set template
+    if (data.template) {
+        document.getElementById('template-name').textContent = data.template.name || '';
+        
+        const templateImage = document.getElementById('template-image');
+        const imagePlaceholder = document.getElementById('image-placeholder');
+        
+        if (data.template.image) {
+            templateImage.src = `/static/images/memes/${data.template.image}`;
+            templateImage.style.display = 'block';
+            templateImage.classList.remove('no-image');
+            if (imagePlaceholder) imagePlaceholder.style.display = 'none';
+        }
+    }
+    
+    // Show topic if in theme mode
+    const topicDisplay = document.getElementById('topic-display');
+    if (data.theme) {
+        topicDisplay.style.display = 'flex';
+        document.getElementById('topic-text').textContent = data.theme;
+    } else {
+        topicDisplay.style.display = 'none';
+    }
+    
+    // Reset inputs
+    document.getElementById('text-input-1').value = '';
+    document.getElementById('text-input-2').value = '';
+    document.getElementById('preview-text-1').textContent = 'Testo 1';
+    document.getElementById('preview-text-2').textContent = 'Testo 2';
+    
+    // Meme changes counter
+    memeChangesLeft = data.meme_changes_left || 5;
+    updateMemeChangesCounter();
+    
+    // Check if already submitted
+    if (data.has_submitted) {
+        document.getElementById('text-input-1').disabled = true;
+        document.getElementById('text-input-2').disabled = true;
+        const submitBtn = document.querySelector('.submit-btn');
+        if (submitBtn) submitBtn.style.display = 'none';
+        document.getElementById('waiting-others').style.display = 'flex';
+    } else {
+        document.getElementById('text-input-1').disabled = false;
+        document.getElementById('text-input-2').disabled = false;
+        const submitBtn = document.querySelector('.submit-btn');
+        if (submitBtn) submitBtn.style.display = 'flex';
+        document.getElementById('waiting-others').style.display = 'none';
+        
+        // Riavvia il timer (approssimativo - il giocatore avrà meno tempo)
+        startTimer(30); // Dà 30 secondi al giocatore riconnesso
+    }
+    
+    showScreen('game-screen');
+    showGamePhase('creating-phase');
+}
+
+// Restore voting phase state
+function restoreVotingPhase(data) {
+    if (data.current_meme) {
+        currentVotingMeme = data.current_meme;
+        displayMemeToVote(data.current_meme);
+    }
+    
+    // Check if already voted for current meme
+    if (data.has_voted) {
+        document.getElementById('vote-buttons').style.display = 'none';
+        document.getElementById('voting-waiting').style.display = 'flex';
+    }
+    
+    showScreen('game-screen');
+    showGamePhase('voting-phase');
+}
 
 socket.on('round_start', (data) => {
     gameState.currentRound = data.round;
@@ -667,6 +926,9 @@ socket.on('back_to_lobby', (data) => {
     updatePlayersList(data.players);
     showScreen('lobby-screen');
     showToast('Torna alla lobby per una nuova partita!', 'info');
+    
+    // La sessione rimane valida finché si è in lobby
+    saveSession();
 });
 
 // ===================================

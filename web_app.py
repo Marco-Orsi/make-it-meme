@@ -572,6 +572,128 @@ def on_join_game(data):
     }, room=room_code, include_self=False)
 
 
+@socketio.on('rejoin_game')
+def on_rejoin_game(data):
+    """Rientra in una partita in corso dopo disconnessione"""
+    room_code = data.get('room_code', '').upper()
+    player_name = data.get('player_name', 'Giocatore')
+    old_player_id = data.get('old_player_id', '')
+    
+    if room_code not in games:
+        emit('rejoin_failed', {'message': 'Stanza non trovata!', 'reason': 'room_not_found'})
+        return
+    
+    game = games[room_code]
+    
+    # Cerca il giocatore disconnesso con lo stesso nome
+    found_player_id = None
+    for pid, pdata in game.players.items():
+        if pdata['name'] == player_name and pid in game.disconnected_players:
+            found_player_id = pid
+            break
+    
+    # Se non trovato con lo stesso nome, prova con l'old_player_id
+    if not found_player_id and old_player_id in game.players and old_player_id in game.disconnected_players:
+        found_player_id = old_player_id
+    
+    if not found_player_id:
+        # Se siamo in lobby, permetti di unirsi normalmente
+        if game.phase == 'lobby':
+            emit('rejoin_failed', {'message': 'Puoi unirti normalmente dalla lobby', 'reason': 'use_normal_join'})
+        else:
+            emit('rejoin_failed', {'message': 'Non sei stato trovato nella partita', 'reason': 'player_not_found'})
+        return
+    
+    # Riconnetti il giocatore con il nuovo sid
+    new_sid = request.sid
+    old_sid = found_player_id
+    
+    # Trasferisci i dati del giocatore dal vecchio sid al nuovo
+    player_data = game.players[old_sid].copy()
+    del game.players[old_sid]
+    game.players[new_sid] = player_data
+    
+    # Aggiorna player_order
+    if old_sid in game.player_order:
+        idx = game.player_order.index(old_sid)
+        game.player_order[idx] = new_sid
+    
+    # Aggiorna player_sids
+    if old_sid in game.player_sids:
+        del game.player_sids[old_sid]
+    game.player_sids[new_sid] = new_sid
+    
+    # Trasferisci meme e voti se esistono
+    if old_sid in game.memes:
+        game.memes[new_sid] = game.memes.pop(old_sid)
+    if old_sid in game.templates:
+        game.templates[new_sid] = game.templates.pop(old_sid)
+    if old_sid in game.meme_changes:
+        game.meme_changes[new_sid] = game.meme_changes.pop(old_sid)
+    if old_sid in game.round_scores:
+        game.round_scores[new_sid] = game.round_scores.pop(old_sid)
+    if old_sid in game.votes_for_current:
+        game.votes_for_current[new_sid] = game.votes_for_current.pop(old_sid)
+    
+    # Aggiorna meme_order se presente
+    if old_sid in game.meme_order:
+        idx = game.meme_order.index(old_sid)
+        game.meme_order[idx] = new_sid
+    
+    # Aggiorna votes
+    if old_sid in game.votes:
+        game.votes[new_sid] = game.votes.pop(old_sid)
+    for creator_id in game.votes:
+        if old_sid in game.votes[creator_id]:
+            game.votes[creator_id][new_sid] = game.votes[creator_id].pop(old_sid)
+    
+    # Rimuovi dalla lista disconnessi
+    game.mark_connected(old_sid)
+    game.disconnected_players.discard(new_sid)
+    
+    # Aggiorna host se necessario
+    if game.host_id == old_sid:
+        game.host_id = new_sid
+    
+    join_room(room_code)
+    
+    # Prepara lo stato corrente del gioco per il giocatore riconnesso
+    game_state = {
+        'room_code': room_code,
+        'player_id': new_sid,
+        'is_host': new_sid == game.host_id,
+        'mode': game.mode,
+        'image_type': game.image_type,
+        'num_rounds': game.num_rounds,
+        'timer_duration': game.timer_duration,
+        'players': get_players_info(game),
+        'phase': game.phase,
+        'current_round': game.current_round,
+        'total_rounds': game.num_rounds
+    }
+    
+    # Aggiungi dati specifici in base alla fase
+    if game.phase == 'creating':
+        game_state['template'] = game.templates.get(new_sid, {})
+        game_state['theme'] = game.current_theme
+        game_state['meme_changes_left'] = game.meme_changes.get(new_sid, 5)
+        game_state['has_submitted'] = new_sid in game.memes
+    elif game.phase == 'voting':
+        current_meme = game.get_current_meme()
+        game_state['current_meme'] = current_meme
+        game_state['has_voted'] = new_sid in game.votes_for_current
+    
+    emit('rejoin_success', game_state)
+    
+    # Notifica gli altri giocatori della riconnessione
+    emit('player_reconnected', {
+        'player_id': new_sid,
+        'player_name': player_data['name'],
+        'players': get_players_info(game),
+        'disconnected_count': len(game.disconnected_players)
+    }, room=room_code, include_self=False)
+
+
 @socketio.on('start_game')
 def on_start_game(data):
     """Inizia la partita"""

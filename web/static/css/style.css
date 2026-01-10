@@ -1914,3 +1914,93 @@ body {
 }
 
 
+/* ===================================
+   Rejoin Banner Styles
+   =================================== */
+
+.rejoin-banner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--accent-pink) 100%);
+    padding: var(--spacing-sm) var(--spacing-md);
+    z-index: 9999;
+    box-shadow: var(--shadow-lg);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+    from {
+        transform: translateY(-100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.rejoin-content {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.rejoin-text {
+    color: white;
+    font-weight: 500;
+    font-size: 0.95rem;
+}
+
+.rejoin-text strong {
+    font-family: 'Bangers', cursive;
+    font-size: 1.1rem;
+    letter-spacing: 1px;
+}
+
+.rejoin-buttons {
+    display: flex;
+    gap: var(--spacing-xs);
+    align-items: center;
+}
+
+.rejoin-btn {
+    padding: 0.5rem 1.2rem !important;
+    font-size: 0.9rem !important;
+    min-width: auto !important;
+}
+
+.rejoin-dismiss {
+    padding: 0.4rem 0.6rem !important;
+    font-size: 1rem !important;
+    min-width: auto !important;
+    background: rgba(255, 255, 255, 0.2) !important;
+    border: none !important;
+}
+
+.rejoin-dismiss:hover {
+    background: rgba(255, 255, 255, 0.3) !important;
+}
+
+/* Adjust body padding when banner is visible */
+body:has(.rejoin-banner[style*="display: flex"]) .container {
+    padding-top: 60px;
+}
+
+/* Player reconnected indicator */
+.player-reconnected {
+    animation: reconnectPulse 0.5s ease;
+}
+
+@keyframes reconnectPulse {
+    0% { background: rgba(78, 205, 196, 0.3); }
+    100% { background: transparent; }
+}
+
+
