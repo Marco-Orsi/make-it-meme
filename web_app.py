@@ -397,7 +397,13 @@ def submit_suggestion():
     category = request.form.get('category', 'other')
     content = request.form.get('content', '').strip()
     
+    # Verifica se è una richiesta AJAX
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or \
+              'application/json' in request.headers.get('Accept', '')
+    
     if not content:
+        if is_ajax:
+            return jsonify({'success': False, 'message': 'Contenuto richiesto'}), 400
         return redirect(url_for('suggestions_page'))
     
     suggestions = load_suggestions()
@@ -413,6 +419,9 @@ def submit_suggestion():
     
     suggestions.insert(0, new_suggestion)  # Aggiungi in cima
     save_suggestions(suggestions)
+    
+    if is_ajax:
+        return jsonify({'success': True, 'message': 'Suggerimento inviato!', 'suggestion': new_suggestion})
     
     return redirect(url_for('suggestions_page'))
 

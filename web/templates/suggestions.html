@@ -456,27 +456,52 @@
             e.preventDefault();
             
             const formData = new FormData(this);
+            const submitBtn = this.querySelector('button[type="submit"]');
+            
+            // Disabilita il pulsante durante l'invio
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<span class="btn-icon">⏳</span><span class="btn-text">Invio in corso...</span>';
+            }
             
             try {
                 const response = await fetch('/suggestions/submit', {
                     method: 'POST',
-                    body: formData
+                    body: formData,
+                    headers: {
+                        'Accept': 'application/json'
+                    }
                 });
                 
-                if (response.ok) {
+                const result = await response.json();
+                
+                if (result.success) {
                     document.getElementById('success-message').classList.add('show');
                     this.reset();
                     document.getElementById('char-count').textContent = '0';
+                    
+                    // Reset categoria attiva
+                    document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
+                    document.querySelector('.category-btn[data-category="feature"]').classList.add('active');
+                    document.getElementById('category-input').value = 'feature';
+                    
+                    showToast('✅ Suggerimento inviato!', 'success');
                     
                     // Refresh page after 1.5s to show new suggestion
                     setTimeout(() => {
                         window.location.reload();
                     }, 1500);
                 } else {
-                    showToast('Errore nell\'invio del suggerimento', 'error');
+                    showToast(result.message || 'Errore nell\'invio del suggerimento', 'error');
                 }
             } catch (error) {
+                console.error('Submit error:', error);
                 showToast('Errore di connessione', 'error');
+            } finally {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<span class="btn-icon">📨</span><span class="btn-text">Invia Suggerimento</span>';
+                }
             }
         });
 
