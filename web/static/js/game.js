@@ -1154,10 +1154,10 @@ function handleFiles(files) {
         file.type.startsWith('image/')
     );
     
-    updatePreview();
+    updateImagePreview();
 }
 
-function updatePreview() {
+function updateImagePreview() {
     const container = document.getElementById('preview-container');
     const uploadBtn = document.getElementById('upload-btn');
     
@@ -1185,7 +1185,7 @@ function updatePreview() {
 
 function removePreviewFile(index) {
     selectedFiles.splice(index, 1);
-    updatePreview();
+    updateImagePreview();
 }
 
 async function uploadImages(e) {
@@ -1197,7 +1197,9 @@ async function uploadImages(e) {
     }
     
     const formData = new FormData();
-    const imageType = document.querySelector('input[name="image_type"]:checked').value;
+    // Leggi il tipo immagine dall'input hidden
+    const imageTypeInput = document.querySelector('input[name="image_type"]');
+    const imageType = imageTypeInput ? imageTypeInput.value : 'custom';
     
     formData.append('image_type', imageType);
     selectedFiles.forEach(file => {
@@ -1205,9 +1207,16 @@ async function uploadImages(e) {
     });
     
     const uploadBtn = document.getElementById('upload-btn');
+    const dropZone = document.getElementById('drop-zone');
+    
+    // Mostra stato di caricamento
     if (uploadBtn) {
         uploadBtn.disabled = true;
-        uploadBtn.innerHTML = '<span class="btn-icon">⏳</span><span class="btn-text">Caricamento...</span>';
+        uploadBtn.classList.add('uploading');
+        uploadBtn.innerHTML = '<span class="btn-icon spinning">⏳</span><span class="btn-text">Caricamento in corso...</span>';
+    }
+    if (dropZone) {
+        dropZone.classList.add('uploading');
     }
     
     try {
@@ -1219,21 +1228,49 @@ async function uploadImages(e) {
         const result = await response.json();
         
         if (result.success) {
-            showToast(result.message, 'success');
+            // Mostra animazione di successo
+            showUploadSuccess(result.uploaded.length);
             selectedFiles = [];
-            updatePreview();
+            updateImagePreview();
             document.getElementById('file-input').value = '';
         } else {
             showToast(result.message || 'Errore durante l\'upload', 'error');
         }
     } catch (error) {
+        console.error('Upload error:', error);
         showToast('Errore di connessione', 'error');
     } finally {
         if (uploadBtn) {
             uploadBtn.disabled = false;
+            uploadBtn.classList.remove('uploading');
             uploadBtn.innerHTML = '<span class="btn-icon">⬆️</span><span class="btn-text">Carica Immagini</span>';
         }
+        if (dropZone) {
+            dropZone.classList.remove('uploading');
+        }
     }
+}
+
+// Mostra animazione di successo upload
+function showUploadSuccess(count) {
+    const container = document.getElementById('preview-container');
+    if (container) {
+        container.innerHTML = `
+            <div class="upload-success-animation">
+                <span class="success-icon">✅</span>
+                <span class="success-text">${count} ${count === 1 ? 'immagine caricata' : 'immagini caricate'} con successo!</span>
+            </div>
+        `;
+        
+        // Nascondi il messaggio dopo 3 secondi
+        setTimeout(() => {
+            container.innerHTML = '';
+            const uploadBtn = document.getElementById('upload-btn');
+            if (uploadBtn) uploadBtn.style.display = 'none';
+        }, 3000);
+    }
+    
+    showToast(`${count} ${count === 1 ? 'immagine caricata' : 'immagini caricate'}!`, 'success');
 }
 
 

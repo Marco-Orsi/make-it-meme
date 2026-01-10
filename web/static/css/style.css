@@ -1913,6 +1913,73 @@ body {
     margin-top: var(--spacing-md);
 }
 
+.upload-btn.uploading {
+    background: var(--gradient-secondary);
+    pointer-events: none;
+}
+
+.btn-icon.spinning {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.file-drop-zone.uploading {
+    opacity: 0.6;
+    pointer-events: none;
+    position: relative;
+}
+
+.file-drop-zone.uploading::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+/* Upload Success Animation */
+.upload-success-animation {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-lg);
+    animation: successPop 0.5s ease;
+}
+
+@keyframes successPop {
+    0% { transform: scale(0.5); opacity: 0; }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+.success-icon {
+    font-size: 3rem;
+    margin-bottom: var(--spacing-sm);
+    animation: bounce 0.6s ease;
+}
+
+@keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+
+.success-text {
+    color: var(--success);
+    font-weight: 600;
+    font-size: 1.1rem;
+    text-align: center;
+}
+
 
 /* ===================================
    Rejoin Banner Styles
