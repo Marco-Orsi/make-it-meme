@@ -1252,9 +1252,10 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: var(--spacing-md);
+    gap: var(--spacing-sm);
     margin-top: auto;
     padding: var(--spacing-md) 0;
+    flex-wrap: nowrap;
 }
 
 .vote-btn {
@@ -1342,7 +1343,7 @@ body {
 .vote-btn.vote-meh {
     flex-direction: column;
     width: auto;
-    padding: var(--spacing-sm) var(--spacing-md);
+    padding: var(--spacing-xs) var(--spacing-sm);
     background: linear-gradient(135deg, #e0e0e0, #bdbdbd);
     color: #333;
     border-radius: var(--radius-md);
@@ -1355,14 +1356,46 @@ body {
 }
 
 .meh-face {
-    font-size: 1.1rem;
+    font-size: 1rem;
     font-weight: 600;
 }
 
 .meh-text {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     font-weight: 600;
     text-transform: uppercase;
+}
+
+/* Mobile voting buttons */
+@media (max-width: 400px) {
+    .vote-buttons {
+        gap: var(--spacing-xs);
+    }
+    
+    .vote-btn.vote-super,
+    .vote-btn.vote-up,
+    .vote-btn.vote-down {
+        width: 55px;
+        height: 55px;
+    }
+    
+    .vote-btn.vote-up svg,
+    .vote-btn.vote-down svg {
+        width: 24px;
+        height: 24px;
+    }
+    
+    .vote-btn.vote-meh {
+        padding: 6px 10px;
+    }
+    
+    .meh-face {
+        font-size: 0.85rem;
+    }
+    
+    .meh-text {
+        font-size: 0.6rem;
+    }
 }
 
 /* Legacy meme grid styles (for results) */
