@@ -44,11 +44,15 @@
             </a>
 
             <!-- Upload Immagini Section -->
-            <div class="upload-section">
-                <button class="upload-toggle-btn" onclick="toggleUploadSection()">
-                    🖼️ Gestisci Immagini Meme
-                    <span class="toggle-arrow" id="toggle-arrow">▼</span>
-                </button>
+            <div class="upload-section-card">
+                <div class="upload-card-header" onclick="toggleUploadSection()">
+                    <div class="upload-card-icon">🖼️</div>
+                    <div class="upload-card-info">
+                        <h3 class="upload-card-title">Gestisci Immagini Meme</h3>
+                        <p class="upload-card-subtitle">Carica le tue immagini personalizzate</p>
+                    </div>
+                    <span class="upload-card-arrow" id="toggle-arrow">▼</span>
+                </div>
                 
                 <div id="upload-panel" class="upload-panel" style="display: none;">
                     <form id="upload-form" class="upload-form" enctype="multipart/form-data">

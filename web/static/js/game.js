@@ -1105,13 +1105,16 @@ let selectedFiles = [];
 function toggleUploadSection() {
     const panel = document.getElementById('upload-panel');
     const arrow = document.getElementById('toggle-arrow');
+    const card = document.querySelector('.upload-section-card');
     
     if (panel.style.display === 'none') {
         panel.style.display = 'block';
         arrow.textContent = '▲';
+        if (card) card.classList.add('open');
     } else {
         panel.style.display = 'none';
         arrow.textContent = '▼';
+        if (card) card.classList.remove('open');
     }
 }
 

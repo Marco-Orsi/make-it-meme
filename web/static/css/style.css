@@ -1913,6 +1913,92 @@ body {
     margin-top: var(--spacing-md);
 }
 
+/* Upload Section Card - Redesigned */
+.upload-section-card {
+    width: 100%;
+    max-width: 400px;
+    margin-top: var(--spacing-lg);
+    background: linear-gradient(135deg, var(--card-bg) 0%, var(--card-bg-light) 100%);
+    border-radius: var(--radius-lg);
+    border: 2px solid var(--secondary);
+    box-shadow: 0 0 20px rgba(0, 217, 255, 0.2);
+    overflow: hidden;
+    transition: all var(--transition-normal);
+}
+
+.upload-section-card:hover {
+    box-shadow: 0 0 30px rgba(0, 217, 255, 0.35);
+    transform: translateY(-2px);
+}
+
+.upload-card-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    padding: var(--spacing-md) var(--spacing-lg);
+    cursor: pointer;
+    transition: background var(--transition-fast);
+}
+
+.upload-card-header:hover {
+    background: rgba(0, 217, 255, 0.05);
+}
+
+.upload-card-icon {
+    font-size: 2.5rem;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+}
+
+.upload-card-info {
+    flex: 1;
+}
+
+.upload-card-title {
+    font-family: 'Bangers', cursive;
+    font-size: 1.3rem;
+    letter-spacing: 1px;
+    color: var(--secondary);
+    margin: 0;
+}
+
+.upload-card-subtitle {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin: 0;
+}
+
+.upload-card-arrow {
+    font-size: 1.2rem;
+    color: var(--secondary);
+    transition: transform var(--transition-normal);
+}
+
+.upload-section-card.open .upload-card-arrow {
+    transform: rotate(180deg);
+}
+
+.upload-section-card .upload-panel {
+    padding: 0 var(--spacing-lg) var(--spacing-lg);
+    border-top: 1px solid rgba(0, 217, 255, 0.2);
+    animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 .upload-btn.uploading {
     background: var(--gradient-secondary);
     pointer-events: none;
