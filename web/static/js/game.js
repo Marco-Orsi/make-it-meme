@@ -26,12 +26,16 @@ const SESSION_KEYS = {
 };
 
 // Save session to localStorage
-function saveSession() {
+function saveSession(playerName = null) {
     if (gameState.roomCode && gameState.playerId) {
-        const playerName = gameState.players.find(p => p.player_id === gameState.playerId)?.name || '';
-        localStorage.setItem(SESSION_KEYS.roomCode, gameState.roomCode);
-        localStorage.setItem(SESSION_KEYS.playerName, playerName);
-        localStorage.setItem(SESSION_KEYS.playerId, gameState.playerId);
+        // Usa il nome passato come parametro, oppure cercalo nell'array players
+        const name = playerName || gameState.players.find(p => p.player_id === gameState.playerId)?.name || '';
+        if (name) {
+            localStorage.setItem(SESSION_KEYS.roomCode, gameState.roomCode);
+            localStorage.setItem(SESSION_KEYS.playerName, name);
+            localStorage.setItem(SESSION_KEYS.playerId, gameState.playerId);
+            console.log('Session saved:', gameState.roomCode, name, gameState.playerId);
+        }
     }
 }
 
@@ -344,11 +348,17 @@ function joinGame() {
         return;
     }
     
+    // Salva temporaneamente per poter tentare il rejoin se fallisce
+    pendingJoinData = { name, roomCode };
+    
     socket.emit('join_game', {
         player_name: name,
         room_code: roomCode
     });
 }
+
+// Dati del tentativo di join pendente
+let pendingJoinData = null;
 
 function startGame() {
     socket.emit('start_game', {
@@ -518,6 +528,19 @@ function dismissRejoinBanner() {
 }
 
 socket.on('error', (data) => {
+    // Se la partita è già iniziata e abbiamo dati di join pendenti, tenta il rejoin
+    if (data.message === 'Partita già iniziata!' && pendingJoinData) {
+        console.log('Partita già iniziata, tento il rejoin...');
+        socket.emit('rejoin_game', {
+            room_code: pendingJoinData.roomCode,
+            player_name: pendingJoinData.name,
+            old_player_id: ''
+        });
+        pendingJoinData = null;
+        return;
+    }
+    
+    pendingJoinData = null;
     showToast(data.message, 'error');
 });
 
@@ -538,8 +561,9 @@ socket.on('game_created', (data) => {
     showScreen('lobby-screen');
     showToast('Stanza creata!', 'success');
     
-    // Salva la sessione per permettere il rejoin
-    saveSession();
+    // Salva la sessione per permettere il rejoin (passa il nome dal form)
+    const playerName = document.getElementById('create-name').value.trim();
+    saveSession(playerName);
     dismissRejoinBanner();
 });
 
@@ -560,8 +584,9 @@ socket.on('game_joined', (data) => {
     showScreen('lobby-screen');
     showToast('Ti sei unito alla stanza!', 'success');
     
-    // Salva la sessione per permettere il rejoin
-    saveSession();
+    // Salva la sessione per permettere il rejoin (passa il nome dal form)
+    const playerName = document.getElementById('join-name').value.trim();
+    saveSession(playerName);
     dismissRejoinBanner();
 });
 
@@ -635,18 +660,30 @@ socket.on('rejoin_success', (data) => {
 socket.on('rejoin_failed', (data) => {
     console.log('Rejoin failed:', data);
     dismissRejoinBanner();
-    clearSession();
     
     if (data.reason === 'use_normal_join') {
         // La partita è in lobby, si può unire normalmente
         const session = getSavedSession();
         if (session.roomCode) {
             document.getElementById('room-code').value = session.roomCode;
+            if (session.playerName) {
+                document.getElementById('join-name').value = session.playerName;
+            }
             showScreen('join-screen');
             showToast('La partita è in lobby, unisciti normalmente', 'info');
         }
+        // Non cancellare la sessione, potrebbe servire per unirsi
+    } else if (data.reason === 'player_not_found') {
+        // Il giocatore non era nella partita, mostra messaggio
+        showToast('Non sei stato trovato in questa partita. Prova a unirti normalmente.', 'error');
+        clearSession();
+    } else if (data.reason === 'room_not_found') {
+        // La stanza non esiste più
+        showToast('La partita non esiste più', 'error');
+        clearSession();
     } else {
         showToast(data.message || 'Impossibile riconnettersi', 'error');
+        clearSession();
     }
 });
 
