@@ -248,9 +248,24 @@
             color: var(--text);
         }
 
-        .vote-btn.voted {
-            background: rgba(255, 107, 53, 0.2);
-            color: var(--primary);
+        .vote-btn.vote-up.voted {
+            background: rgba(78, 205, 196, 0.2);
+            color: var(--success);
+        }
+
+        .vote-btn.vote-down.voted {
+            background: rgba(255, 107, 157, 0.2);
+            color: var(--accent-pink);
+        }
+
+        .vote-btn.vote-up:hover {
+            background: rgba(78, 205, 196, 0.15);
+            color: var(--success);
+        }
+
+        .vote-btn.vote-down:hover {
+            background: rgba(255, 107, 157, 0.15);
+            color: var(--accent-pink);
         }
 
         .vote-count {
@@ -418,8 +433,11 @@
                         <p class="suggestion-content">{{ suggestion.content }}</p>
                         <div class="suggestion-footer">
                             <div class="vote-section">
-                                <button class="vote-btn" onclick="voteSuggestion('{{ suggestion.id }}')" id="vote-btn-{{ suggestion.id }}">
-                                    👍 <span class="vote-count" id="votes-{{ suggestion.id }}">{{ suggestion.votes }}</span>
+                                <button class="vote-btn vote-up" onclick="voteSuggestion('{{ suggestion.id }}', 'up')" id="vote-up-{{ suggestion.id }}">
+                                    👍 <span class="vote-count" id="votes-up-{{ suggestion.id }}">{{ suggestion.votes_up|default(suggestion.votes, true) }}</span>
+                                </button>
+                                <button class="vote-btn vote-down" onclick="voteSuggestion('{{ suggestion.id }}', 'down')" id="vote-down-{{ suggestion.id }}">
+                                    👎 <span class="vote-count" id="votes-down-{{ suggestion.id }}">{{ suggestion.votes_down|default(0, true) }}</span>
                                 </button>
                             </div>
                         </div>
@@ -506,22 +524,41 @@
         });
 
         // Vote for suggestion
-        async function voteSuggestion(suggestionId) {
+        async function voteSuggestion(suggestionId, voteType) {
             try {
                 const response = await fetch(`/suggestions/vote/${suggestionId}`, {
-                    method: 'POST'
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ vote_type: voteType })
                 });
                 
                 if (response.ok) {
                     const data = await response.json();
-                    document.getElementById(`votes-${suggestionId}`).textContent = data.votes;
-                    document.getElementById(`vote-btn-${suggestionId}`).classList.add('voted');
+                    
+                    // Aggiorna i contatori
+                    document.getElementById(`votes-up-${suggestionId}`).textContent = data.votes_up;
+                    document.getElementById(`votes-down-${suggestionId}`).textContent = data.votes_down;
+                    
+                    // Aggiungi classe voted al pulsante cliccato
+                    const btnUp = document.getElementById(`vote-up-${suggestionId}`);
+                    const btnDown = document.getElementById(`vote-down-${suggestionId}`);
+                    
+                    if (voteType === 'up') {
+                        btnUp.classList.add('voted');
+                        btnDown.classList.remove('voted');
+                    } else {
+                        btnDown.classList.add('voted');
+                        btnUp.classList.remove('voted');
+                    }
                     
                     // Update total votes
                     const totalVotes = document.getElementById('total-votes');
-                    totalVotes.textContent = parseInt(totalVotes.textContent) + 1;
+                    totalVotes.textContent = data.total_votes;
                     
-                    showToast('Voto registrato! 👍', 'success');
+                    showToast(voteType === 'up' ? 'Voto positivo! 👍' : 'Voto negativo! 👎', 'success');
                 }
             } catch (error) {
                 showToast('Errore nel voto', 'error');

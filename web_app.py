@@ -384,9 +384,10 @@ def save_suggestions(suggestions):
 def suggestions_page():
     """Pagina dei suggerimenti"""
     suggestions = load_suggestions()
-    # Ordina per voti (più votati prima)
-    suggestions.sort(key=lambda x: x.get('votes', 0), reverse=True)
-    total_votes = sum(s.get('votes', 0) for s in suggestions)
+    # Ordina per voti positivi (più votati prima)
+    suggestions.sort(key=lambda x: x.get('votes_up', x.get('votes', 0)), reverse=True)
+    # Calcola totale voti (su + giù)
+    total_votes = sum(s.get('votes_up', s.get('votes', 0)) + s.get('votes_down', 0) for s in suggestions)
     return render_template('suggestions.html', suggestions=suggestions, total_votes=total_votes)
 
 
@@ -428,14 +429,41 @@ def submit_suggestion():
 
 @app.route('/suggestions/vote/<suggestion_id>', methods=['POST'])
 def vote_suggestion(suggestion_id):
-    """Vota un suggerimento"""
+    """Vota un suggerimento (pollice su o giù)"""
     suggestions = load_suggestions()
+    
+    # Ottieni il tipo di voto dal body JSON
+    data = request.get_json() or {}
+    vote_type = data.get('vote_type', 'up')
     
     for suggestion in suggestions:
         if suggestion.get('id') == suggestion_id:
-            suggestion['votes'] = suggestion.get('votes', 0) + 1
+            # Inizializza i contatori se non esistono
+            if 'votes_up' not in suggestion:
+                suggestion['votes_up'] = suggestion.get('votes', 0)
+            if 'votes_down' not in suggestion:
+                suggestion['votes_down'] = 0
+            
+            # Incrementa il contatore appropriato
+            if vote_type == 'up':
+                suggestion['votes_up'] = suggestion.get('votes_up', 0) + 1
+            else:
+                suggestion['votes_down'] = suggestion.get('votes_down', 0) + 1
+            
+            # Aggiorna anche il campo votes totale per retrocompatibilità
+            suggestion['votes'] = suggestion.get('votes_up', 0)
+            
             save_suggestions(suggestions)
-            return jsonify({'success': True, 'votes': suggestion['votes']})
+            
+            # Calcola il totale dei voti
+            total_votes = sum(s.get('votes_up', s.get('votes', 0)) + s.get('votes_down', 0) for s in suggestions)
+            
+            return jsonify({
+                'success': True, 
+                'votes_up': suggestion['votes_up'],
+                'votes_down': suggestion['votes_down'],
+                'total_votes': total_votes
+            })
     
     return jsonify({'success': False}), 404
 
